@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	log "github.com/cihub/seelog"
 	"io/ioutil"
@@ -17,6 +18,11 @@ const (
 	getFlvUrl       = "http://flapi.nicovideo.jp/api/getflv/"
 	getThreadKeyUrl = "http://flapi.nicovideo.jp/api/getthreadkey/"
 )
+
+type Account struct {
+	Mail     string
+	Password string
+}
 
 type FlvInfo struct {
 	ThreadId  string //1 コメントDLで使う、動画DLで使う
@@ -84,11 +90,18 @@ func main() {
 }
 
 func login() {
-	client := http.Client{Jar: jar}
+	log.Debug("read ./account.json")
+	jsonstring, _ := ioutil.ReadFile("./account.json")
+	a := Account{}
+	json.Unmarshal(jsonstring, &a)
+	mail := a.Mail
+	password := a.Password
+
 	log.Debug("login " + loginUrl)
+	client := http.Client{Jar: jar}
 	res, _ := client.PostForm(
 		loginUrl,
-		url.Values{"mail": {m}, "password": {p}},
+		url.Values{"mail": {mail}, "password": {password}},
 	)
 	log.Debug(res.Header)
 }
@@ -99,7 +112,7 @@ func getComment(flvInfo FlvInfo) {
 	temp, _ := strconv.Atoi(flvInfo.L)
 	minutes := temp/60 + 1
 	packetXml := fmt.Sprintf(
-`<packet>
+		`<packet>
 <thread thread="%v" user_id="%v"
   threadkey="%v" force_184="%v"
   scores="1" version="20090904" res_from="-1000"
@@ -130,7 +143,6 @@ func getComment(flvInfo FlvInfo) {
 	defer res.Body.Close()
 
 	log.Debug(res.Header)
-//	log.Debugf(string(body))
 	log.Info("write comment file: test.xml")
 	ioutil.WriteFile("./test.xml", body, os.ModePerm)
 }
