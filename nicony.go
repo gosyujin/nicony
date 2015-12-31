@@ -1,0 +1,367 @@
+package main
+
+import (
+	"encoding/json"
+	"encoding/xml"
+	"fmt"
+	_ "github.com/PuerkitoBio/goquery"
+	"github.com/cheggaaa/pb"
+	log "github.com/cihub/seelog"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"net/http/cookiejar"
+	"net/url"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+)
+
+const (
+	loginUrl        = "https://secure.nicovideo.jp/secure/login"
+	getThumbinfoUrl = "http://ext.nicovideo.jp/api/getthumbinfo/"
+	getFlvUrl       = "http://flapi.nicovideo.jp/api/getflv/"
+	getThreadKeyUrl = "http://flapi.nicovideo.jp/api/getthreadkey/"
+)
+
+// ログイン情報
+type Account struct {
+	Mail     string
+	Password string
+}
+
+// 指定された動画のFLV保管URLの情報 http://dic.nicovideo.jp/a/ニコニコ動画api
+type FlvInfo struct {
+	ThreadId         string //1 コメントDLで使う
+	L                string //2 コメントDLで使う、60で割って+1して使う
+	Url              string //3 動画DLで使う
+	Ms               string //4 コメントDLで使う
+	MsSub            string //5
+	UserId           string //6 コメントDLで使う
+	IsPremium        string //7 (プレミアムなら1)
+	Nickname         string //8
+	Time             string //9
+	Done             string //10
+	NgRv             string //11
+	Hms              string //12
+	Hmsp             string //13
+	Hmst             string //14
+	Hmstk            string //15
+	UserKey          string //16
+	NeedsKey         string //17 公式放送のみ存在？
+	OptionalThreadId string //18 公式放送のみ存在？
+	NgCh             string //19 公式放送のみ存在？
+}
+
+// 指定された動画の動画情報 http://dic.nicovideo.jp/a/ニコニコ動画api
+type NicovideoThumbResponse struct {
+	Thumb Thumb `xml:"thumb"`
+}
+
+type Thumb struct {
+	VideoId       string `xml:"video_id"`       //1 動画ID
+	Title         string `xml:"title"`          //2 動画タイトル
+	Description   string `xml:"description"`    //3 動画説明文
+	ThumbnailUrl  string `xml:"thumbnail_url"`  //4 サムネイルURL
+	FirstRetrieve string `xml:"first_retrieve"` //5 投稿日時
+	Length        string `xml:"length"`         //6 動画の再生時間
+	MovieType     string `xml:"movie_type"`     //7 動画の形式。FlashVideo形式ならflv、MPEG-4形式ならmp4、ニコニコムービーメーカーはswf
+	SizeHigh      string `xml:"size_high"`      //8 動画サイズ
+	SizeLow       string `xml:"size_low"`       //9 低画質モード時の動画サイズ
+	ViewCounter   string `xml:"view_counter"`   //10 再生数
+	CommentNum    string `xml:"comment_num"`    //11 コメント数
+	MylistCounter string `xml:"mylist_counter"` //12 マイリスト数
+	LastResBody   string `xml:"last_res_body"`  //13 ブログパーツなどに表示される最新コメント
+	WatchUrl      string `xml:"watch_url"`      //14 視聴URL
+	ThumbType     string `xml:"thumb_type"`     //15 動画ならvideo、マイメモリーならmymemory
+	Embeddable    string `xml:"embeddable"`     //16 外部プレイヤーで再生禁止(1)か可能(0)
+	NoLivePlay    string `xml:"no_live_play"`   //17 ニコニコ生放送で再生禁止(1)か可能(0)
+	Tags          []Tag  `xml:"tags"`           //18 タグ //TODO 同じタグが複数ある時の取得方法
+	UserId        string `xml:"user_id"`        //19 ユーザID
+	UserNickname  string `xml:"user_nickname"`  //20 ユーザニックネーム
+	UserIconUrl   string `xml:"user_icon_url"`  //21 ユーザアイコン
+	ChId          string `xml:"ch_id"`          //22 チャンネルID
+	ChName        string `xml:"ch_name"`        //23 チャンネル名
+	ChIconUrl     string `xml:"ch_icon_url"`    //24 チャンネルアイコン
+}
+
+type Tag struct {
+	Tag string `xml:"tag"`
+}
+
+//コメントDLに使う
+type ThreadKeyInfo struct {
+	ThreadKey string //1 コメントDLで使う、必ず空？
+	Force184  string //2 コメントDLで使う、必ず1？
+}
+
+// cookie
+var jar, _ = cookiejar.New(nil)
+
+// seelog設定
+const logConfig = `
+  <seelog type="adaptive" mininterval="200000000" maxinterval="1000000000" critmsgcount="5">
+    <formats>
+      <format id="console" format="%EscM(36)[nicony]%EscM(39) %EscM(32)%Date(2006-01-02T15:04:05.999999999Z07:00)%EscM(39) %EscM(33)[%File:%FuncShort:%Line]%EscM(39) %EscM(46)[%LEV]%EscM(49) %Msg%n" />
+      <format id="output" format="[nicony] %Date(2006-01-02T15:04:05.999999999Z07:00) [%File:%FuncShort:%Line] [%LEV] %Msg%n" />
+    </formats>
+    <outputs>
+      <filter formatid="console" levels="trace,debug,info,warn,error,critical">
+        <console />
+      </filter>
+      <filter formatid="output" levels="info,warn,error,critical">
+        <rollingfile filename="./log/log.out" type="size" maxsize="1024000" maxrolls="500" />
+      </filter>
+    </outputs>
+  </seelog>`
+
+func initLogger() {
+	logger, err := log.LoggerFromConfigAsBytes([]byte(logConfig))
+	if err != nil {
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	log.ReplaceLogger(logger)
+}
+
+func main() {
+	initLogger()
+	defer log.Flush()
+
+	url := "1450683708"
+	//url := "sm26477759"
+
+	// 動画情報取得(未ログインでも取得できる)
+	nicovideo := getThumb(getThumbinfoUrl + url)
+	os.MkdirAll(nicovideo.Thumb.ChName, 0711)
+	dest := nicovideo.Thumb.ChName + "/" + nicovideo.Thumb.Title
+	// 動画情報ファイル出力
+	buf, _ := xml.MarshalIndent(nicovideo, "", "  ")
+	write(dest+".html", buf)
+
+	login()
+	flvInfo := getFlvInfo(getFlvUrl + url)
+
+	// コメント取得
+	comment := getComment(flvInfo)
+	// コメントファイル出力
+	write(dest+".xml", comment)
+
+	// 動画ファイル書き込み
+	downloadVideo(dest+"."+nicovideo.Thumb.MovieType, flvInfo.Url, nicovideo)
+}
+
+func login() {
+	log.Info("read ./account.json")
+	jsonstring, _ := ioutil.ReadFile("./account.json")
+	a := Account{}
+	json.Unmarshal(jsonstring, &a)
+	mail := a.Mail
+	password := a.Password
+
+	log.Debug("login URL: " + loginUrl)
+	client := http.Client{Jar: jar}
+	res, _ := client.PostForm(
+		loginUrl,
+		url.Values{"mail": {mail}, "password": {password}},
+	)
+	log.Info(res.Status)
+}
+
+func getThumb(getThumbinfoUrl string) NicovideoThumbResponse {
+	log.Debug("getThumbinfo URL: " + getThumbinfoUrl)
+
+	res, _ := http.Get(getThumbinfoUrl)
+	log.Info(res.Status)
+	body, _ := ioutil.ReadAll(res.Body)
+	defer res.Body.Close()
+
+	nicovideo := NicovideoThumbResponse{Thumb{}}
+	xml.Unmarshal(body, &nicovideo)
+	//log.Debugf("%#v", nicovideo)
+
+	return nicovideo
+}
+
+func getFlvInfo(getFlvUrl string) FlvInfo {
+	client := http.Client{Jar: jar}
+
+	r, _ := client.Get("http://www.nicovideo.jp/my/top/all?innerPage=1&mode=next_page")
+	b, _ := ioutil.ReadAll(r.Body)
+	defer r.Body.Close()
+	log.Debug(string(b))
+
+	log.Debug("get getFlvUrl " + getFlvUrl)
+	res, _ := client.Get(getFlvUrl)
+	body, _ := ioutil.ReadAll(res.Body)
+	defer res.Body.Close()
+
+	//レスポンスをクエリパラメータ毎に分割
+	f := FlvInfo{}
+	for _, param := range strings.Split(string(body), "&") {
+		temp := strings.Split(param, "=")
+		key := temp[0]
+		value := temp[1]
+
+		switch key {
+		case "thread_id":
+			f.ThreadId = value
+		case "l":
+			f.L = value
+		case "url":
+			f.Url = value
+		case "ms":
+			f.Ms = value
+		case "ms_sub":
+			f.MsSub = value
+		case "user_id":
+			f.UserId = value
+		case "is_premium":
+			f.IsPremium = value
+		case "nickname":
+			f.Nickname = value
+		case "time":
+			f.Time = value
+		case "done":
+			f.Done = value
+		case "ng_rv":
+			f.NgRv = value
+		case "hms":
+			f.Hms = value
+		case "hmsp":
+			f.Hmsp = value
+		case "hmst":
+			f.Hmst = value
+		case "hmstk":
+			f.Hmstk = value
+		case "userkey":
+			f.UserKey = value
+		case "needs_key":
+			f.NeedsKey = value
+		case "optional_thread_id":
+			f.OptionalThreadId = value
+		case "ng_ch":
+			f.NgCh = value
+		default:
+			log.Warn("unknown parameter: " + key + " value is " + value)
+		}
+	}
+
+	//TODO 必須パラメータ存在チェック
+	//log.Debug(f.ThreadId)
+	//log.Debug(f.Url)
+	//log.Debug(f.Ms)
+	//log.Debug(f.UserId)
+
+	return f
+}
+
+func getComment(flvInfo FlvInfo) []byte {
+	threadKeyInfo := getThreadKeyInfo(flvInfo.ThreadId)
+
+	temp, _ := strconv.Atoi(flvInfo.L)
+	minutes := temp/60 + 1
+	packetXml := fmt.Sprintf(
+		`<packet>
+		   <thread thread="%v" user_id="%v"
+		     threadkey="%v" force_184="%v"
+		     scores="1" version="20090904" res_from="-1000"
+		     with_global="1">
+		   </thread>
+		   <thread_leaves thread="%v#" user_id="%v"
+		     threadkey="%v" force_184="%v"
+		     scores="1">
+		       0-%v:100,1000
+		   </thread_leaves>
+		   </packet>`,
+		flvInfo.ThreadId, flvInfo.UserId,
+		threadKeyInfo.ThreadKey, threadKeyInfo.Force184,
+		flvInfo.ThreadId, flvInfo.UserId,
+		threadKeyInfo.ThreadKey, threadKeyInfo.Force184,
+		minutes)
+	log.Debug(packetXml)
+
+	client := http.Client{Jar: jar}
+	messageServer, _ := url.QueryUnescape(flvInfo.Ms)
+	log.Debug("message server URL: " + messageServer)
+	res, _ := client.Post(
+		messageServer,
+		"application/x-www-form-urlencoded",
+		strings.NewReader(packetXml),
+	)
+	log.Info(res.Status)
+
+	body, _ := ioutil.ReadAll(res.Body)
+	defer res.Body.Close()
+
+	return body
+}
+
+func getThreadKeyInfo(threadId string) ThreadKeyInfo {
+	client := http.Client{Jar: jar}
+	res, _ := client.Get(getThreadKeyUrl + "?thread=" + threadId)
+	body, _ := ioutil.ReadAll(res.Body)
+	defer res.Body.Close()
+
+	//レスポンスをクエリパラメータ毎に分割
+	t := ThreadKeyInfo{}
+	for _, param := range strings.Split(string(body), "&") {
+		temp := strings.Split(param, "=")
+		key := temp[0]
+		value := temp[1]
+
+		switch key {
+		case "threadkey":
+			t.ThreadKey = value
+		case "force_184":
+			t.Force184 = value
+		default:
+			log.Warn("unknown parameter: " + key + " value is " + value)
+		}
+	}
+	return t
+}
+
+func downloadVideo(filepath string, videoUrl string, nicovideo NicovideoThumbResponse) {
+	client := http.Client{Jar: jar}
+	watchUrl := nicovideo.Thumb.WatchUrl
+	size, _ := strconv.Atoi(nicovideo.Thumb.SizeHigh)
+
+	// videoUrlにアクセスする前にいったんwatchUrlをgetする必要がある http://n-yagi.0r2.net/script/2009/12/nico2downloader.html
+	client.Get(watchUrl)
+
+	videoUrlDecode, _ := url.QueryUnescape(videoUrl)
+	log.Debug("file server URL: " + videoUrlDecode)
+	res, _ := client.Get(videoUrlDecode)
+	log.Info(res.Status)
+	defer res.Body.Close()
+
+	log.Info("download: " + filepath)
+	// プログレスバー
+	time.Sleep(5000 * time.Millisecond)
+	// File open
+	file, _ := os.OpenFile(filepath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
+	defer file.Close()
+
+	progressBar := pb.New(size)
+	progressBar.SetUnits(pb.U_BYTES)
+	progressBar.SetRefreshRate(time.Millisecond * 10)
+	progressBar.ShowCounters = true
+	progressBar.ShowTimeLeft = true
+	progressBar.ShowSpeed = true
+	progressBar.SetMaxWidth(80)
+	progressBar.Start()
+
+	writer := io.MultiWriter(file, progressBar)
+
+	source := res.Body
+	io.Copy(writer, source)
+
+	log.Info("download complete.")
+}
+
+func write(filepath string, body []byte) {
+	log.Info("write file: " + filepath)
+	ioutil.WriteFile(filepath, body, os.ModePerm)
+}
