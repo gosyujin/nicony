@@ -105,8 +105,8 @@ var jar, _ = cookiejar.New(nil)
 const logConfig = `
   <seelog type="adaptive" mininterval="200000000" maxinterval="1000000000" critmsgcount="5">
     <formats>
-      <format id="console" format="%EscM(36)[nicony]%EscM(39) %EscM(32)%Date(2006-01-02T15:04:05.999999999Z07:00)%EscM(39) %EscM(33)[%File:%FuncShort:%Line]%EscM(39) %EscM(46)[%LEV]%EscM(49) %Msg%n" />
-      <format id="output" format="[nicony] %Date(2006-01-02T15:04:05.999999999Z07:00) [%File:%FuncShort:%Line] [%LEV] %Msg%n" />
+      <format id="console" format="%EscM(36)[nicony]%EscM(39) %EscM(32)%Date(2006-01-02T15:04:05.999999999Z07:00)%EscM(39) %EscM(33)[%File:%FuncShort:%Line]%EscM(39) %EscM(46)[%LEVEL]%EscM(49) %Msg%n" />
+      <format id="output" format="[nicony] %Date(2006-01-02T15:04:05.999999999Z07:00) [%File:%FuncShort:%Line] [%LEVEL] %Msg%n" />
     </formats>
     <outputs>
       <!--<filter formatid="console" levels="trace,debug,info,warn,error,critical">-->
@@ -134,7 +134,7 @@ func main() {
 	var links []string
 	links = getNicorepo(getNicorepoUrl, links)
 	log.Debug(links)
-	time.Sleep(time.Millisecond * 10000)
+	time.Sleep(time.Millisecond * 15000)
 
 	for _, url := range links {
 		log.Info("===================================================")
@@ -146,7 +146,7 @@ func main() {
 		log.Info("Target: " + nicovideo.Thumb.Title)
 
 		if flvInfo.Url == "" {
-			log.Warn("flvInfo.Url is EMPTY.")
+			log.Warn("flvInfo.Url is EMPTY.無料期間終了か、元から有料っぽい")
 			continue
 		}
 
@@ -170,6 +170,7 @@ func main() {
 		// 動画ファイル書き込み
 		downloadVideo(dest+"."+nicovideo.Thumb.MovieType, flvInfo.Url, nicovideo)
 	}
+	log.Info("end")
 }
 
 func login() {
@@ -186,12 +187,12 @@ func login() {
 		loginUrl,
 		url.Values{"mail": {mail}, "password": {password}},
 	)
-	log.Info(res.Status)
+	log.Debug(res.Status)
 }
 
 func getNicorepo(getNicorepoUrl string, links []string) []string {
 	client := http.Client{Jar: jar}
-	//log.Trace("getNicorepo URL: " + getNicorepoUrl)
+	log.Debug("getNicorepo URL: " + getNicorepoUrl)
 	res, _ := client.Get(getNicorepoUrl)
 	body, _ := ioutil.ReadAll(res.Body)
 	defer res.Body.Close()
@@ -242,7 +243,7 @@ func getThumb(getThumbinfoUrl string) NicovideoThumbResponse {
 	log.Debug("getThumbinfo URL: " + getThumbinfoUrl)
 
 	res, _ := http.Get(getThumbinfoUrl)
-	log.Info(res.Status)
+	log.Debug(res.Status)
 	body, _ := ioutil.ReadAll(res.Body)
 	defer res.Body.Close()
 
@@ -259,7 +260,7 @@ func getFlvInfo(getFlvUrl string) FlvInfo {
 	log.Debug("get getFlvUrl " + getFlvUrl)
 	res, _ := client.Get(getFlvUrl)
 	body, _ := ioutil.ReadAll(res.Body)
-	log.Info(res.Status)
+	log.Debug(res.Status)
 	defer res.Body.Close()
 
 	//レスポンスをクエリパラメータ毎に分割
@@ -349,13 +350,13 @@ func getComment(flvInfo FlvInfo) []byte {
 
 	client := http.Client{Jar: jar}
 	messageServer, _ := url.QueryUnescape(flvInfo.Ms)
-	log.Debug("message(comment) server URL: " + messageServer)
+	log.Debug("comment server URL: " + messageServer)
 	res, _ := client.Post(
 		messageServer,
 		"application/x-www-form-urlencoded",
 		strings.NewReader(packetXml),
 	)
-	log.Info(res.Status)
+	log.Debug(res.Status)
 
 	body, _ := ioutil.ReadAll(res.Body)
 	defer res.Body.Close()
@@ -397,9 +398,9 @@ func downloadVideo(filepath string, videoUrl string, nicovideo NicovideoThumbRes
 	client.Get(watchUrl)
 
 	videoUrlDecode, _ := url.QueryUnescape(videoUrl)
-	log.Debug("videofile server URL: " + videoUrlDecode)
+	log.Debug("video server URL: " + videoUrlDecode)
 	res, _ := client.Get(videoUrlDecode)
-	log.Info(res.Status)
+	log.Debug(res.Status)
 	defer res.Body.Close()
 
 	log.Info("download: " + filepath)
@@ -407,11 +408,11 @@ func downloadVideo(filepath string, videoUrl string, nicovideo NicovideoThumbRes
 	file, _ := os.OpenFile(filepath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
 	defer file.Close()
 
-	time.Sleep(time.Millisecond * 10000)
 	copy(size, file, res.Body)
 }
 
 func copy(size int, filepath io.Writer, source io.Reader) {
+	time.Sleep(time.Millisecond * 15000)
 	// プログレスバー
 	progressBar := pb.New(size)
 	progressBar.SetUnits(pb.U_BYTES)
@@ -423,9 +424,10 @@ func copy(size int, filepath io.Writer, source io.Reader) {
 	progressBar.Start()
 
 	writer := io.MultiWriter(filepath, progressBar)
-	//writer := io.MultiWriter(filepath)
 
 	io.Copy(writer, source)
+	progressBar.FinishPrint("download complete")
+	time.Sleep(time.Millisecond * 15000)
 }
 
 func write(filepath string, body []byte) {
