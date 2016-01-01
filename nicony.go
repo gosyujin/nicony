@@ -5,7 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
-	_ "github.com/cheggaaa/pb"
+	"github.com/cheggaaa/pb"
 	log "github.com/cihub/seelog"
 	"io"
 	"io/ioutil"
@@ -15,7 +15,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	_ "time"
+	"time"
 )
 
 const (
@@ -110,7 +110,7 @@ const logConfig = `
     </formats>
     <outputs>
       <!--<filter formatid="console" levels="trace,debug,info,warn,error,critical">-->
-      <filter formatid="console" levels="debug,info,warn,error,critical">
+      <filter formatid="console" levels="trace,debug,info,warn,error,critical">
         <console />
       </filter>
       <filter formatid="output" levels="info,warn,error,critical">
@@ -134,6 +134,7 @@ func main() {
 	var links []string
 	links = getNicorepo(getNicorepoUrl, links)
 	log.Debug(links)
+	time.Sleep(time.Millisecond * 10000)
 
 	for _, url := range links {
 		log.Info("===================================================")
@@ -190,7 +191,7 @@ func login() {
 
 func getNicorepo(getNicorepoUrl string, links []string) []string {
 	client := http.Client{Jar: jar}
-	log.Trace("getNicorepo URL: " + getNicorepoUrl)
+	//log.Trace("getNicorepo URL: " + getNicorepoUrl)
 	res, _ := client.Get(getNicorepoUrl)
 	body, _ := ioutil.ReadAll(res.Body)
 	defer res.Body.Close()
@@ -200,7 +201,7 @@ func getNicorepo(getNicorepoUrl string, links []string) []string {
 	doc.Find(".nicorepo-page").Each(func(_ int, s *goquery.Selection) {
 		// 公式が動画投稿
 		s.Find(".log-community-video-upload .log-target-info").Each(func(_ int, s *goquery.Selection) {
-			//text := s.Find("a").Text()
+			log.Trace(s.Find("a").Text())
 			link, _ := s.Find("a").Attr("href")
 			buf := strings.Split(link, "/")
 			number := buf[len(buf)-1]
@@ -208,7 +209,7 @@ func getNicorepo(getNicorepoUrl string, links []string) []string {
 		})
 		// ユーザーが動画投稿
 		s.Find(".log-user-video-upload .log-target-info").Each(func(_ int, s *goquery.Selection) {
-			//text := s.Find("a").Text()
+			log.Trace(s.Find("a").Text())
 			link, _ := s.Find("a").Attr("href")
 			buf := strings.Split(link, "/")
 			number := buf[len(buf)-1]
@@ -216,7 +217,7 @@ func getNicorepo(getNicorepoUrl string, links []string) []string {
 		})
 		// xx再生を達成
 		s.Find(".log-user-video-round-number-of-view-counter .log-target-info").Each(func(_ int, s *goquery.Selection) {
-			//text := s.Find("a").Text()
+			log.Trace(s.Find("a").Text())
 			link, _ := s.Find("a").Attr("href")
 			buf := strings.Split(link, "/")
 			number := buf[len(buf)-1]
@@ -224,10 +225,12 @@ func getNicorepo(getNicorepoUrl string, links []string) []string {
 		})
 		// ニコレポ最後
 		s.Find(".no-next-page").Each(func(_ int, s *goquery.Selection) {
+			log.Trace(".no-next")
 		})
 
 		// 過去のニコレポ再帰呼び出し
 		s.Find(".next-page-link").Each(func(_ int, s *goquery.Selection) {
+			log.Trace(".next")
 			link, _ := s.Attr("href")
 			getNicorepo(nicovideojpUrl+link, links)
 		})
@@ -404,22 +407,23 @@ func downloadVideo(filepath string, videoUrl string, nicovideo NicovideoThumbRes
 	file, _ := os.OpenFile(filepath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
 	defer file.Close()
 
+	time.Sleep(time.Millisecond * 10000)
 	copy(size, file, res.Body)
 }
 
 func copy(size int, filepath io.Writer, source io.Reader) {
 	// プログレスバー
-	//progressBar := pb.New(size)
-	//progressBar.SetUnits(pb.U_BYTES)
-	//progressBar.SetRefreshRate(time.Millisecond * 10)
-	//progressBar.ShowCounters = true
-	//progressBar.ShowTimeLeft = true
-	//progressBar.ShowSpeed = true
-	//progressBar.SetMaxWidth(80)
-	//progressBar.Start()
+	progressBar := pb.New(size)
+	progressBar.SetUnits(pb.U_BYTES)
+	progressBar.SetRefreshRate(time.Millisecond * 10)
+	progressBar.ShowCounters = true
+	progressBar.ShowTimeLeft = true
+	progressBar.ShowSpeed = true
+	progressBar.SetMaxWidth(80)
+	progressBar.Start()
 
-	//writer := io.MultiWriter(filepath, progressBar)
-	writer := io.MultiWriter(filepath)
+	writer := io.MultiWriter(filepath, progressBar)
+	//writer := io.MultiWriter(filepath)
 
 	io.Copy(writer, source)
 }
