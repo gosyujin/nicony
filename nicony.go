@@ -5,7 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
-	"github.com/cheggaaa/pb"
+	_ "github.com/cheggaaa/pb"
 	log "github.com/cihub/seelog"
 	"io"
 	"io/ioutil"
@@ -15,7 +15,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
+	_ "time"
 )
 
 const (
@@ -136,19 +136,27 @@ func main() {
 	log.Debug(links)
 
 	for _, url := range links {
+		log.Info("===================================================")
 		// flv保管情報取得
 		flvInfo := getFlvInfo(getFlvUrl + url)
 		log.Tracef("%#v", flvInfo)
+		// 動画情報取得(未ログインでも取得できる)
+		nicovideo := getThumb(getThumbinfoUrl + url)
+		log.Info("Target: " + nicovideo.Thumb.Title)
 
 		if flvInfo.Url == "" {
-			log.Warn("flvInfo.Url is empty.")
+			log.Warn("flvInfo.Url is EMPTY.")
 			continue
 		}
 
-		// 動画情報取得(未ログインでも取得できる)
-		nicovideo := getThumb(getThumbinfoUrl + url)
-		os.MkdirAll(nicovideo.Thumb.ChName, 0711)
-		dest := nicovideo.Thumb.ChName + "/" + nicovideo.Thumb.Title
+		filepath := "dest/"
+		if nicovideo.Thumb.ChName == "" {
+			filepath = filepath + nicovideo.Thumb.UserNickname + "/"
+		} else {
+			filepath = filepath + nicovideo.Thumb.ChName + "/"
+		}
+		os.MkdirAll(filepath, 0711)
+		dest := filepath + nicovideo.Thumb.Title
 		// 動画情報ファイル出力
 		buf, _ := xml.MarshalIndent(nicovideo, "", "  ")
 		write(dest+".txt", buf)
@@ -182,7 +190,7 @@ func login() {
 
 func getNicorepo(getNicorepoUrl string, links []string) []string {
 	client := http.Client{Jar: jar}
-	log.Info("getNicorepo URL: " + getNicorepoUrl)
+	log.Trace("getNicorepo URL: " + getNicorepoUrl)
 	res, _ := client.Get(getNicorepoUrl)
 	body, _ := ioutil.ReadAll(res.Body)
 	defer res.Body.Close()
@@ -192,35 +200,37 @@ func getNicorepo(getNicorepoUrl string, links []string) []string {
 	doc.Find(".nicorepo-page").Each(func(_ int, s *goquery.Selection) {
 		// 公式が動画投稿
 		s.Find(".log-community-video-upload .log-target-info").Each(func(_ int, s *goquery.Selection) {
-			text := s.Find("a").Text()
+			//text := s.Find("a").Text()
 			link, _ := s.Find("a").Attr("href")
 			buf := strings.Split(link, "/")
 			number := buf[len(buf)-1]
 			links = append(links, number)
-			log.Info(text)
 		})
 		// ユーザーが動画投稿
 		s.Find(".log-user-video-upload .log-target-info").Each(func(_ int, s *goquery.Selection) {
-			text := s.Find("a").Text()
+			//text := s.Find("a").Text()
 			link, _ := s.Find("a").Attr("href")
 			buf := strings.Split(link, "/")
 			number := buf[len(buf)-1]
 			links = append(links, number)
-			log.Info(text)
 		})
 		// xx再生を達成
 		s.Find(".log-user-video-round-number-of-view-counter .log-target-info").Each(func(_ int, s *goquery.Selection) {
-			text := s.Find("a").Text()
+			//text := s.Find("a").Text()
 			link, _ := s.Find("a").Attr("href")
 			buf := strings.Split(link, "/")
 			number := buf[len(buf)-1]
 			links = append(links, number)
-			log.Info(text)
+		})
+		// ニコレポ最後
+		s.Find(".no-next-page").Each(func(_ int, s *goquery.Selection) {
 		})
 
 		// 過去のニコレポ再帰呼び出し
-		link, _ := doc.Find(".next-page-link").Attr("href")
-		getNicorepo(nicovideojpUrl+link, links)
+		s.Find(".next-page-link").Each(func(_ int, s *goquery.Selection) {
+			link, _ := s.Attr("href")
+			getNicorepo(nicovideojpUrl+link, links)
+		})
 	})
 	return links
 }
@@ -246,6 +256,7 @@ func getFlvInfo(getFlvUrl string) FlvInfo {
 	log.Debug("get getFlvUrl " + getFlvUrl)
 	res, _ := client.Get(getFlvUrl)
 	body, _ := ioutil.ReadAll(res.Body)
+	log.Info(res.Status)
 	defer res.Body.Close()
 
 	//レスポンスをクエリパラメータ毎に分割
@@ -331,11 +342,11 @@ func getComment(flvInfo FlvInfo) []byte {
 		flvInfo.ThreadId, flvInfo.UserId,
 		threadKeyInfo.ThreadKey, threadKeyInfo.Force184,
 		minutes)
-	log.Debug(packetXml)
+	log.Trace(packetXml)
 
 	client := http.Client{Jar: jar}
 	messageServer, _ := url.QueryUnescape(flvInfo.Ms)
-	log.Debug("message server URL: " + messageServer)
+	log.Debug("message(comment) server URL: " + messageServer)
 	res, _ := client.Post(
 		messageServer,
 		"application/x-www-form-urlencoded",
@@ -383,7 +394,7 @@ func downloadVideo(filepath string, videoUrl string, nicovideo NicovideoThumbRes
 	client.Get(watchUrl)
 
 	videoUrlDecode, _ := url.QueryUnescape(videoUrl)
-	log.Debug("file server URL: " + videoUrlDecode)
+	log.Debug("videofile server URL: " + videoUrlDecode)
 	res, _ := client.Get(videoUrlDecode)
 	log.Info(res.Status)
 	defer res.Body.Close()
@@ -393,23 +404,24 @@ func downloadVideo(filepath string, videoUrl string, nicovideo NicovideoThumbRes
 	file, _ := os.OpenFile(filepath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
 	defer file.Close()
 
+	copy(size, file, res.Body)
+}
+
+func copy(size int, filepath io.Writer, source io.Reader) {
 	// プログレスバー
-	progressBar := pb.New(size)
-	progressBar.SetUnits(pb.U_BYTES)
-	progressBar.SetRefreshRate(time.Millisecond * 10)
-	progressBar.ShowCounters = true
-	progressBar.ShowTimeLeft = true
-	progressBar.ShowSpeed = true
-	progressBar.SetMaxWidth(80)
-	progressBar.Start()
+	//progressBar := pb.New(size)
+	//progressBar.SetUnits(pb.U_BYTES)
+	//progressBar.SetRefreshRate(time.Millisecond * 10)
+	//progressBar.ShowCounters = true
+	//progressBar.ShowTimeLeft = true
+	//progressBar.ShowSpeed = true
+	//progressBar.SetMaxWidth(80)
+	//progressBar.Start()
 
-	writer := io.MultiWriter(file, progressBar)
+	//writer := io.MultiWriter(filepath, progressBar)
+	writer := io.MultiWriter(filepath)
 
-	source := res.Body
 	io.Copy(writer, source)
-	//time.Sleep(10000 * time.Millisecond)
-
-	log.Info("download complete.")
 }
 
 func write(filepath string, body []byte) {
