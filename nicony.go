@@ -409,7 +409,6 @@ func downloadVideo(filepath string, videoUrl string, nicovideo NicovideoThumbRes
 	io.Copy(writer, source)
 	//time.Sleep(10000 * time.Millisecond)
 
-	write(filepath, source)
 	log.Info("download complete.")
 }
 
