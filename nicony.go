@@ -110,7 +110,7 @@ const logConfig = `
     </formats>
     <outputs>
       <!--<filter formatid="console" levels="trace,debug,info,warn,error,critical">-->
-      <filter formatid="console" levels="trace,debug,info,warn,error,critical">
+      <filter formatid="console" levels="debug,info,warn,error,critical">
         <console />
       </filter>
       <filter formatid="output" levels="info,warn,error,critical">
@@ -199,6 +199,7 @@ func getNicorepo(getNicorepoUrl string, links []string) []string {
 	doc, _ := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
 
 	// タイムライン
+	nextPageLink := ""
 	doc.Find(".nicorepo-page").Each(func(_ int, s *goquery.Selection) {
 		// 公式が動画投稿
 		s.Find(".log-community-video-upload .log-target-info").Each(func(_ int, s *goquery.Selection) {
@@ -233,10 +234,14 @@ func getNicorepo(getNicorepoUrl string, links []string) []string {
 		s.Find(".next-page-link").Each(func(_ int, s *goquery.Selection) {
 			log.Trace(".next")
 			link, _ := s.Attr("href")
-			getNicorepo(nicovideojpUrl+link, links)
+			nextPageLink = link
 		})
 	})
-	return links
+	if nextPageLink == "" {
+		return links
+	} else {
+		return getNicorepo(nicovideojpUrl+nextPageLink, links)
+	}
 }
 
 func getThumb(getThumbinfoUrl string) NicovideoThumbResponse {
