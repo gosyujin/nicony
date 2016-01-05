@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"encoding/xml"
+	"flag"
 	"fmt"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/cheggaaa/pb"
@@ -31,6 +32,12 @@ const (
 type Account struct {
 	Mail     string
 	Password string
+}
+
+// オプション情報
+type Option struct {
+	IsAnsi        *bool // ログ出力をAnsiカラーにするか
+	IsProgressBar *bool // ダウンロード時プログレスバーを表示するか
 }
 
 // 指定された動画のFLV保管URLの情報 http://dic.nicovideo.jp/a/ニコニコ動画api
@@ -101,34 +108,56 @@ type ThreadKeyInfo struct {
 // cookie
 var jar, _ = cookiejar.New(nil)
 
-// seelog設定
-const logConfig = `
-  <seelog type="adaptive" mininterval="200000000" maxinterval="1000000000" critmsgcount="5">
-    <formats>
-      <format id="console" format="%EscM(36)[nicony]%EscM(39) %EscM(32)%Date(2006-01-02T15:04:05.999999999Z07:00)%EscM(39) %EscM(33)[%File:%FuncShort:%Line]%EscM(39) %EscM(46)[%LEVEL]%EscM(49) %Msg%n" />
-      <format id="output" format="[nicony] %Date(2006-01-02T15:04:05.999999999Z07:00) [%File:%FuncShort:%Line] [%LEVEL] %Msg%n" />
-    </formats>
-    <outputs>
-      <!--<filter formatid="console" levels="trace,debug,info,warn,error,critical">-->
-      <filter formatid="console" levels="debug,info,warn,error,critical">
-        <console />
-      </filter>
-      <filter formatid="output" levels="trace,debug,info,warn,error,critical">
-        <rollingfile filename="./log/log.out" type="size" maxsize="1024000" maxrolls="500" />
-      </filter>
-    </outputs>
-  </seelog>`
+func initLogger(o Option) {
+	// seelog設定
+	var logConfig string
+	if *o.IsAnsi {
+		logConfig = `
+		  <seelog type="adaptive" mininterval="200000000" maxinterval="1000000000" critmsgcount="5">
+		    <formats>
+		      <format id="console" format="%EscM(36)[nicony]%EscM(39) %EscM(32)%Date(2006-01-02T15:04:05.999999999Z07:00)%EscM(39) %EscM(33)[%File:%FuncShort:%Line]%EscM(39) %EscM(46)[%LEVEL]%EscM(49) %Msg%n" />
+		      <format id="plane" format="[nicony] %Date(2006-01-02T15:04:05.999999999Z07:00) [%File:%FuncShort:%Line] [%LEVEL] %Msg%n" />
+		    </formats>
+		    <outputs>
+		      <filter formatid="console" levels="debug,info,warn,error,critical">
+		        <console />
+		      </filter>
+		      <filter formatid="plane" levels="trace,debug,info,warn,error,critical">
+		        <rollingfile filename="./log/log.out" type="size" maxsize="1024000" maxrolls="500" />
+		      </filter>
+		    </outputs>
+		  </seelog>`
+	} else {
+		logConfig = `
+		  <seelog type="adaptive" mininterval="200000000" maxinterval="1000000000" critmsgcount="5">
+		    <formats>
+		      <format id="plane" format="[nicony] %Date(2006-01-02T15:04:05.999999999Z07:00) [%File:%FuncShort:%Line] [%LEVEL] %Msg%n" />
+		    </formats>
+		    <outputs>
+		      <filter formatid="plane" levels="debug,info,warn,error,critical">
+		        <console />
+		      </filter>
+		      <filter formatid="plane" levels="trace,debug,info,warn,error,critical">
+		        <rollingfile filename="./log/log.out" type="size" maxsize="1024000" maxrolls="500" />
+		      </filter>
+		    </outputs>
+		  </seelog>`
+	}
 
-func initLogger() {
 	logger, _ := log.LoggerFromConfigAsBytes([]byte(logConfig))
 	log.ReplaceLogger(logger)
 }
 
 func main() {
-	initLogger()
+	o := Option{}
+	o.IsAnsi = flag.Bool("ansi", true, "Output Ansi color")
+	o.IsProgressBar = flag.Bool("pb", true, "Show progress bar")
+	flag.Parse()
+
+	initLogger(o)
 	defer log.Flush()
 
-	log.Info("nicony ver.0.1")
+	log.Info("nicony ver.0.2")
 	login()
 
 	// ニコレポから動画リスト取得
@@ -192,7 +221,7 @@ func main() {
 		write(dest+".xml", comment)
 
 		// 動画ファイル書き込み
-		downloadVideo(dest+"."+nicovideo.Thumb.MovieType, flvInfo.Url, nicovideo)
+		downloadVideo(dest+"."+nicovideo.Thumb.MovieType, flvInfo.Url, nicovideo, o)
 	}
 }
 
@@ -425,7 +454,7 @@ func getThreadKeyInfo(threadId string) ThreadKeyInfo {
 	return t
 }
 
-func downloadVideo(filepath string, videoUrl string, nicovideo NicovideoThumbResponse) {
+func downloadVideo(filepath string, videoUrl string, nicovideo NicovideoThumbResponse, o Option) {
 	client := http.Client{Jar: jar}
 	watchUrl := nicovideo.Thumb.WatchUrl
 	size, _ := strconv.Atoi(nicovideo.Thumb.SizeHigh)
@@ -444,25 +473,30 @@ func downloadVideo(filepath string, videoUrl string, nicovideo NicovideoThumbRes
 	file, _ := os.OpenFile(filepath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0666)
 	defer file.Close()
 
-	copy(size, file, res.Body)
+	copy(size, file, res.Body, o)
 }
 
-func copy(size int, filepath io.Writer, source io.Reader) {
+func copy(size int, filepath io.Writer, source io.Reader, o Option) {
 	time.Sleep(time.Millisecond * 15000)
-	// プログレスバー
-	progressBar := pb.New(size)
-	progressBar.SetUnits(pb.U_BYTES)
-	progressBar.SetRefreshRate(time.Millisecond * 10)
-	progressBar.ShowCounters = true
-	progressBar.ShowTimeLeft = true
-	progressBar.ShowSpeed = true
-	progressBar.SetMaxWidth(80)
-	progressBar.Start()
+	if *o.IsProgressBar {
+		// プログレスバー
+		progressBar := pb.New(size)
+		progressBar.SetUnits(pb.U_BYTES)
+		progressBar.SetRefreshRate(time.Millisecond * 10)
+		progressBar.ShowCounters = true
+		progressBar.ShowTimeLeft = true
+		progressBar.ShowSpeed = true
+		progressBar.SetMaxWidth(80)
+		progressBar.Start()
 
-	writer := io.MultiWriter(filepath, progressBar)
+		writer := io.MultiWriter(filepath, progressBar)
+		io.Copy(writer, source)
+		progressBar.FinishPrint("download complete")
+	} else {
+		writer := io.MultiWriter(filepath)
+		io.Copy(writer, source)
+	}
 
-	io.Copy(writer, source)
-	progressBar.FinishPrint("download complete")
 	time.Sleep(time.Millisecond * 15000)
 }
 
