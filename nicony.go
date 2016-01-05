@@ -113,7 +113,7 @@ const logConfig = `
       <filter formatid="console" levels="debug,info,warn,error,critical">
         <console />
       </filter>
-      <filter formatid="output" levels="info,warn,error,critical">
+      <filter formatid="output" levels="trace,debug,info,warn,error,critical">
         <rollingfile filename="./log/log.out" type="size" maxsize="1024000" maxrolls="500" />
       </filter>
     </outputs>
@@ -133,31 +133,54 @@ func main() {
 	// ニコレポから動画リスト取得
 	var links []string
 	links = getNicorepo(getNicorepoUrl, links)
-	log.Debug(links)
-	time.Sleep(time.Millisecond * 15000)
 
 	for _, url := range links {
+		time.Sleep(time.Millisecond * 15000)
 		log.Info("===================================================")
 		// flv保管情報取得
 		flvInfo := getFlvInfo(getFlvUrl + url)
 		log.Tracef("%#v", flvInfo)
 		// 動画情報取得(未ログインでも取得できる)
 		nicovideo := getThumb(getThumbinfoUrl + url)
-		log.Info("Target: " + nicovideo.Thumb.Title)
+
+		title := strings.Replace(nicovideo.Thumb.Title, "/", "", -1)
+		chName := nicovideo.Thumb.ChName
+		nickname := nicovideo.Thumb.UserNickname
+		movieType := nicovideo.Thumb.MovieType
+		sizeHigh := nicovideo.Thumb.SizeHigh
+
+		log.Info("target: " + title)
 
 		if flvInfo.Url == "" {
 			log.Warn("flvInfo.Url is EMPTY.無料期間終了か、元から有料っぽい")
 			continue
 		}
 
-		filepath := "dest/"
-		if nicovideo.Thumb.ChName == "" {
-			filepath = filepath + nicovideo.Thumb.UserNickname + "/"
+		filepath := "dest"
+		if chName == "" {
+			filepath = filepath + "/user/" + nickname
 		} else {
-			filepath = filepath + nicovideo.Thumb.ChName + "/"
+			filepath = filepath + "/channel/" + chName
 		}
+		dest := filepath + "/" + title
+
+		fi, _ := os.Stat(dest + "." + movieType)
+		fullsize, _ := strconv.Atoi(sizeHigh)
+		if fi == nil {
+			log.Info("new download: " + dest)
+		} else {
+			if int(fi.Size()) == fullsize {
+				log.Warn("video is already EXIST.動画は既に存在している: " + dest)
+				continue
+			} else {
+				log.Warn("redownload: " + dest)
+				os.Remove(dest + "." + movieType)
+			}
+		}
+
+		log.Info("make dir: " + filepath)
 		os.MkdirAll(filepath, 0711)
-		dest := filepath + nicovideo.Thumb.Title
+
 		// 動画情報ファイル出力
 		buf, _ := xml.MarshalIndent(nicovideo, "", "  ")
 		write(dest+".txt", buf)
@@ -170,7 +193,6 @@ func main() {
 		// 動画ファイル書き込み
 		downloadVideo(dest+"."+nicovideo.Thumb.MovieType, flvInfo.Url, nicovideo)
 	}
-	log.Info("end")
 }
 
 func login() {
@@ -192,7 +214,7 @@ func login() {
 
 func getNicorepo(getNicorepoUrl string, links []string) []string {
 	client := http.Client{Jar: jar}
-	log.Debug("getNicorepo URL: " + getNicorepoUrl)
+	log.Trace("getNicorepo URL: " + getNicorepoUrl)
 	res, _ := client.Get(getNicorepoUrl)
 	body, _ := ioutil.ReadAll(res.Body)
 	defer res.Body.Close()
@@ -201,6 +223,14 @@ func getNicorepo(getNicorepoUrl string, links []string) []string {
 	// タイムライン
 	nextPageLink := ""
 	doc.Find(".nicorepo-page").Each(func(_ int, s *goquery.Selection) {
+		// マイリスト
+		s.Find(".log-user-mylist-add .log-target-info").Each(func(_ int, s *goquery.Selection) {
+			log.Trace(s.Find("a").Text())
+			link, _ := s.Find("a").Attr("href")
+			buf := strings.Split(link, "/")
+			number := buf[len(buf)-1]
+			links = append(links, number)
+		})
 		// 公式が動画投稿
 		s.Find(".log-community-video-upload .log-target-info").Each(func(_ int, s *goquery.Selection) {
 			log.Trace(s.Find("a").Text())
