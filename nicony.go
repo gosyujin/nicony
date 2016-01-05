@@ -128,6 +128,7 @@ func main() {
 	initLogger()
 	defer log.Flush()
 
+	log.Info("nicony ver.0.1")
 	login()
 
 	// ニコレポから動画リスト取得
