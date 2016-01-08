@@ -86,7 +86,7 @@ type Thumb struct {
 	ThumbType     string `xml:"thumb_type"`     //15 動画ならvideo、マイメモリーならmymemory
 	Embeddable    string `xml:"embeddable"`     //16 外部プレイヤーで再生禁止(1)か可能(0)
 	NoLivePlay    string `xml:"no_live_play"`   //17 ニコニコ生放送で再生禁止(1)か可能(0)
-	Tags          []Tag  `xml:"tags"`           //18 タグ //TODO 同じタグが複数ある時の取得方法
+	Tags          []Tag  `xml:"tags"`           //18 タグ
 	UserId        string `xml:"user_id"`        //19 ユーザID
 	UserNickname  string `xml:"user_nickname"`  //20 ユーザニックネーム
 	UserIconUrl   string `xml:"user_icon_url"`  //21 ユーザアイコン
@@ -315,6 +315,7 @@ func getThumb(getThumbinfoUrl string) NicovideoThumbResponse {
 	nicovideo := NicovideoThumbResponse{Thumb{}}
 	xml.Unmarshal(body, &nicovideo)
 	log.Tracef("%#v", nicovideo)
+	log.Debugf("%#v", nicovideo)
 
 	return nicovideo
 }
