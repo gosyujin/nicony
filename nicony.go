@@ -459,7 +459,9 @@ func downloadVideo(filepath string, videoUrl string, nicovideo NicovideoThumbRes
 	watchUrl := nicovideo.Thumb.WatchUrl
 	size, _ := strconv.Atoi(nicovideo.Thumb.SizeHigh)
 
-	// videoUrlにアクセスする前にいったんwatchUrlをgetする必要がある http://n-yagi.0r2.net/script/2009/12/nico2downloader.html
+	// videoUrlにアクセスする前にいったんwatchUrlをgetしてCookieを取得している必要がある
+	// http://n-yagi.0r2.net/script/2009/12/nico2downloader.html
+	// http://sekai.hatenablog.jp/entry/2013/02/26/164500
 	client.Get(watchUrl)
 
 	videoUrlDecode, _ := url.QueryUnescape(videoUrl)
