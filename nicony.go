@@ -96,7 +96,7 @@ type Thumb struct {
 }
 
 type Tag struct {
-	Tag string `xml:"tag"`
+	Tag []string `xml:"tag"`
 }
 
 //コメントDLに使う
