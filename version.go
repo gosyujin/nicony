@@ -1,5 +1,5 @@
 package main
 
 func getVersion() string {
-	return "Nicony ver.0.3"
+	return "Nicony ver.0.4"
 }

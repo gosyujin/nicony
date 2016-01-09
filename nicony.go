@@ -346,7 +346,7 @@ func getComment(flvInfo FlvInfo) []byte {
 		"application/x-www-form-urlencoded",
 		strings.NewReader(packetXml),
 	)
-	log.Debugf("%#v", res)
+	log.Tracef("%#v", res)
 	log.Debug(res.Status)
 
 	body, _ := ioutil.ReadAll(res.Body)
@@ -365,7 +365,7 @@ func getThreadKeyInfo(threadId string) ThreadKeyInfo {
 	body, _ := ioutil.ReadAll(res.Body)
 	defer res.Body.Close()
 
-	log.Debugf("%#v", res)
+	log.Tracef("%#v", res)
 	log.Debug(res.Status)
 
 	//レスポンスをクエリパラメータ毎に分割
@@ -384,6 +384,8 @@ func getThreadKeyInfo(threadId string) ThreadKeyInfo {
 			log.Warn("unknown parameter: " + key + " value is " + value)
 		}
 	}
+
+	log.Tracef("%#v", t)
 	return t
 }
 
