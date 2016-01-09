@@ -111,7 +111,7 @@ type Option struct {
 
 func optionParser() Option {
 	o := Option{}
-	o.IsAnsi = flag.Bool("ansi", true, "Output Ansi color")
+	o.IsAnsi = flag.Bool("ansi", true, "Enable Ansi color")
 	o.LogLevel = flag.String("l", "debug", "Log level")
 	o.IsProgressBar = flag.Bool("pb", true, "Show progress bar")
 	o.IsVersion = flag.Bool("v", false, "Show version")
