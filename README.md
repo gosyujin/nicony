@@ -1,6 +1,6 @@
 # Nicony
 
-![](./logo.png)
+![](./img/logo.png)
 
 Nicony is a tool able to cache the video and the comment.
 

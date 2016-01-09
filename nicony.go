@@ -34,12 +34,6 @@ type Account struct {
 	Password string
 }
 
-// オプション情報
-type Option struct {
-	IsAnsi        *bool // ログ出力をAnsiカラーにするか
-	IsProgressBar *bool // ダウンロード時プログレスバーを表示するか
-}
-
 // 指定された動画のFLV保管URLの情報 http://dic.nicovideo.jp/a/ニコニコ動画api
 type FlvInfo struct {
 	ThreadId         string //1 コメントDLで使う
@@ -108,55 +102,36 @@ type ThreadKeyInfo struct {
 // cookie
 var jar, _ = cookiejar.New(nil)
 
-func initLogger(o Option) {
-	// seelog設定
-	var logConfig string
-	if *o.IsAnsi {
-		logConfig = `
-		  <seelog type="adaptive" mininterval="200000000" maxinterval="1000000000" critmsgcount="5">
-		    <formats>
-		      <format id="console" format="%EscM(36)[nicony]%EscM(39) %EscM(32)%Date(2006-01-02T15:04:05Z07:00)%EscM(39) %EscM(33)[%File:%FuncShort:%Line]%EscM(39) %EscM(46)[%LEVEL]%EscM(49) %Msg%n" />
-		      <format id="plane" format="[nicony] %Date(2006-01-02T15:04:05Z07:00) [%File:%FuncShort:%Line] [%LEVEL] %Msg%n" />
-		    </formats>
-		    <outputs>
-		      <filter formatid="console" levels="debug,info,warn,error,critical">
-		        <console />
-		      </filter>
-		      <filter formatid="plane" levels="trace,debug,info,warn,error,critical">
-		        <rollingfile filename="./log/log.txt" type="size" maxsize="1024000" maxrolls="500" />
-		      </filter>
-		    </outputs>
-		  </seelog>`
-	} else {
-		logConfig = `
-		  <seelog type="adaptive" mininterval="200000000" maxinterval="1000000000" critmsgcount="5">
-		    <formats>
-		      <format id="plane" format="[nicony] %Date(2006-01-02T15:04:05Z07:00) [%File:%FuncShort:%Line] [%LEVEL] %Msg%n" />
-		    </formats>
-		    <outputs>
-		      <filter formatid="plane" levels="debug,info,warn,error,critical">
-		        <console />
-		      </filter>
-		      <filter formatid="plane" levels="trace,debug,info,warn,error,critical">
-		        <rollingfile filename="./log/log.txt" type="size" maxsize="1024000" maxrolls="500" />
-		      </filter>
-		    </outputs>
-		  </seelog>`
-	}
+// オプション情報
+type Option struct {
+	IsAnsi        *bool // ログ出力をAnsiカラーにするか
+	IsProgressBar *bool // ダウンロード時プログレスバーを表示するか
+	IsVersion     *bool // バージョン表示
 
-	logger, _ := log.LoggerFromConfigAsBytes([]byte(logConfig))
-	log.ReplaceLogger(logger)
 }
 
-func main() {
+func optionParser() Option {
 	o := Option{}
 	o.IsAnsi = flag.Bool("ansi", true, "Output Ansi color")
 	o.IsProgressBar = flag.Bool("pb", true, "Show progress bar")
+	o.IsVersion = flag.Bool("v", false, "Show version")
 	flag.Parse()
+
+	return o
+}
+
+func main() {
+	o := optionParser()
+
+	if *o.IsVersion {
+		fmt.Println(getVersion())
+		os.Exit(0)
+	}
 
 	initLogger(o)
 	defer log.Flush()
-	log.Info("nicony ver.0.3")
+
+	log.Info(getVersion())
 
 	login()
 
@@ -315,7 +290,6 @@ func getThumb(getThumbinfoUrl string) NicovideoThumbResponse {
 	nicovideo := NicovideoThumbResponse{Thumb{}}
 	xml.Unmarshal(body, &nicovideo)
 	log.Tracef("%#v", nicovideo)
-	log.Debugf("%#v", nicovideo)
 
 	return nicovideo
 }
