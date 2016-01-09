@@ -6,7 +6,7 @@ import (
 	set "github.com/deckarep/golang-set"
 	"io/ioutil"
 	"net/http"
-	"sort"
+	_ "sort"
 	"strings"
 )
 
@@ -69,7 +69,7 @@ func addList(s *goquery.Selection, links []string) []string {
 }
 
 func uniq(links []string) []string {
-	sort.Strings(links)
+	//sort.Strings(links)
 	log.Trace(len(links))
 	log.Trace(links)
 
@@ -90,7 +90,7 @@ func uniq(links []string) []string {
 		}
 	}
 
-	sort.Strings(uniqueLinks)
+	//sort.Strings(uniqueLinks)
 	log.Debug(len(uniqueLinks))
 	log.Debug(uniqueLinks)
 

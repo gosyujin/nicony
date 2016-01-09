@@ -103,15 +103,18 @@ var jar, _ = cookiejar.New(nil)
 
 // オプション情報
 type Option struct {
-	IsAnsi        *bool // ログ出力をAnsiカラーにするか
-	IsProgressBar *bool // ダウンロード時プログレスバーを表示するか
-	IsVersion     *bool // バージョン表示
-
+	IsAnsi        *bool   // ログ出力をAnsiカラーにするか
+	IsProgressBar *bool   // ダウンロード時プログレスバーを表示するか
+	IsVersion     *bool   // バージョン表示
+	LogLevel      *string // ログレベル
+	VideoId       *string // ビデオID
 }
 
 func optionParser() Option {
 	o := Option{}
-	o.IsAnsi = flag.Bool("ansi", true, "Output Ansi color")
+	o.IsAnsi = flag.Bool("ansi", true, "Enable Ansi color")
+	o.LogLevel = flag.String("l", "debug", "Log level")
+	o.VideoId = flag.String("id", "", "Video ID (ex.sm123456789)")
 	o.IsProgressBar = flag.Bool("pb", true, "Show progress bar")
 	o.IsVersion = flag.Bool("v", false, "Show version")
 	flag.Parse()
@@ -134,69 +137,78 @@ func main() {
 
 	login()
 
-	// ニコレポページから動画リスト取得
-	var links []string
-	links = getNicorepo(getNicorepoUrl, links)
+	if *o.VideoId == "" {
+		// ニコレポページから動画リスト取得
+		var links []string
+		links = getNicorepo(getNicorepoUrl, links)
 
-	for _, url := range links {
-		time.Sleep(time.Millisecond * 15000)
-		log.Info("===================================================")
-		// flv保管情報取得
-		flvInfo := getFlvInfo(getFlvUrl + url)
-		log.Tracef("%#v", flvInfo)
-		// 動画情報取得(未ログインでも取得できる)
-		nicovideo := getThumb(getThumbinfoUrl + url)
-
-		title := strings.Replace(nicovideo.Thumb.Title, "/", "", -1)
-		chName := nicovideo.Thumb.ChName
-		nickname := nicovideo.Thumb.UserNickname
-		movieType := nicovideo.Thumb.MovieType
-		sizeHigh := nicovideo.Thumb.SizeHigh
-
-		log.Info("target: " + title)
-
-		if flvInfo.Url == "" {
-			log.Warn("flvInfo.Url is EMPTY.無料期間終了か、元から有料っぽい")
-			continue
+		for _, videoId := range links {
+			download(videoId, o)
 		}
-
-		filepath := "dest"
-		if chName == "" {
-			filepath = filepath + "/user/" + nickname
-		} else {
-			filepath = filepath + "/channel/" + chName
-		}
-		dest := filepath + "/" + title
-
-		fi, _ := os.Stat(dest + "." + movieType)
-		fullsize, _ := strconv.Atoi(sizeHigh)
-		if fi == nil {
-			log.Info("new download: " + dest)
-		} else {
-			if int(fi.Size()) == fullsize {
-				log.Warn("video is already EXIST.動画は既に存在している: " + dest)
-				continue
-			} else {
-				log.Warn("redownload: " + dest)
-				os.Remove(dest + "." + movieType)
-			}
-		}
-
-		log.Info("make dir: " + filepath)
-		os.MkdirAll(filepath, 0711)
-
-		// 動画情報ファイル出力
-		buf, _ := xml.MarshalIndent(nicovideo, "", "  ")
-		write(dest+".txt", buf)
-
-		// コメント取得
-		comment := getComment(flvInfo)
-		// コメントファイル出力
-		write(dest+".xml", comment)
-
-		// 動画ファイル書き込み
-		downloadVideo(dest+"."+nicovideo.Thumb.MovieType, flvInfo.Url, nicovideo, o)
+	} else {
+		download(*o.VideoId, o)
 	}
+
+}
+
+func download(url string, o Option) {
+	time.Sleep(time.Millisecond * 15000)
+	log.Info("===================================================")
+	// flv保管情報取得
+	flvInfo := getFlvInfo(getFlvUrl + url)
+	log.Tracef("%#v", flvInfo)
+	// 動画情報取得(未ログインでも取得できる)
+	nicovideo := getThumb(getThumbinfoUrl + url)
+
+	title := strings.Replace(nicovideo.Thumb.Title, "/", "", -1)
+	chName := nicovideo.Thumb.ChName
+	nickname := nicovideo.Thumb.UserNickname
+	movieType := nicovideo.Thumb.MovieType
+	sizeHigh := nicovideo.Thumb.SizeHigh
+
+	log.Info("target: " + title)
+
+	if flvInfo.Url == "" {
+		log.Warn("flvInfo.Url is EMPTY.無料期間終了か、元から有料っぽい")
+		return
+	}
+
+	filepath := "dest"
+	if chName == "" {
+		filepath = filepath + "/user/" + nickname
+	} else {
+		filepath = filepath + "/channel/" + chName
+	}
+	dest := filepath + "/" + title
+
+	fi, _ := os.Stat(dest + "." + movieType)
+	fullsize, _ := strconv.Atoi(sizeHigh)
+	if fi == nil {
+		log.Info("new download: " + dest)
+	} else {
+		if int(fi.Size()) == fullsize {
+			log.Warn("video is already EXIST.動画は既に存在している: " + dest)
+			return
+		} else {
+			log.Warn("redownload: " + dest)
+			os.Remove(dest + "." + movieType)
+		}
+	}
+
+	log.Info("make dir: " + filepath)
+	os.MkdirAll(filepath, 0711)
+
+	// 動画情報ファイル出力
+	buf, _ := xml.MarshalIndent(nicovideo, "", "  ")
+	write(dest+".txt", buf)
+
+	// コメント取得
+	comment := getComment(flvInfo)
+	// コメントファイル出力
+	write(dest+".xml", comment)
+
+	// 動画ファイル書き込み
+	downloadVideo(dest+"."+nicovideo.Thumb.MovieType, flvInfo.Url, nicovideo, o)
 }
 
 func login() {
@@ -288,6 +300,7 @@ func getFlvInfo(getFlvUrl string) FlvInfo {
 			f.NgCh = value
 		default:
 			log.Warn("unknown parameter: " + key + " value is " + value)
+			// closedがあり、かつ1だと不正終了っぽい
 		}
 	}
 
@@ -333,6 +346,7 @@ func getComment(flvInfo FlvInfo) []byte {
 		"application/x-www-form-urlencoded",
 		strings.NewReader(packetXml),
 	)
+	log.Debugf("%#v", res)
 	log.Debug(res.Status)
 
 	body, _ := ioutil.ReadAll(res.Body)
@@ -343,9 +357,16 @@ func getComment(flvInfo FlvInfo) []byte {
 
 func getThreadKeyInfo(threadId string) ThreadKeyInfo {
 	client := http.Client{Jar: jar}
-	res, _ := client.Get(getThreadKeyUrl + "?thread=" + threadId)
+
+	threadKeyServer := getThreadKeyUrl + "?thread=" + threadId
+	log.Debug("threadKey server URL: " + threadKeyServer)
+
+	res, _ := client.Get(threadKeyServer)
 	body, _ := ioutil.ReadAll(res.Body)
 	defer res.Body.Close()
+
+	log.Debugf("%#v", res)
+	log.Debug(res.Status)
 
 	//レスポンスをクエリパラメータ毎に分割
 	t := ThreadKeyInfo{}
