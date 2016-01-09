@@ -34,13 +34,6 @@ type Account struct {
 	Password string
 }
 
-// オプション情報
-type Option struct {
-	IsAnsi        *bool // ログ出力をAnsiカラーにするか
-	IsProgressBar *bool // ダウンロード時プログレスバーを表示するか
-	IsVersion     *bool // バージョン表示
-}
-
 // 指定された動画のFLV保管URLの情報 http://dic.nicovideo.jp/a/ニコニコ動画api
 type FlvInfo struct {
 	ThreadId         string //1 コメントDLで使う
@@ -108,6 +101,14 @@ type ThreadKeyInfo struct {
 
 // cookie
 var jar, _ = cookiejar.New(nil)
+
+// オプション情報
+type Option struct {
+	IsAnsi        *bool // ログ出力をAnsiカラーにするか
+	IsProgressBar *bool // ダウンロード時プログレスバーを表示するか
+	IsVersion     *bool // バージョン表示
+
+}
 
 func optionParser() Option {
 	o := Option{}
@@ -289,7 +290,6 @@ func getThumb(getThumbinfoUrl string) NicovideoThumbResponse {
 	nicovideo := NicovideoThumbResponse{Thumb{}}
 	xml.Unmarshal(body, &nicovideo)
 	log.Tracef("%#v", nicovideo)
-	log.Debugf("%#v", nicovideo)
 
 	return nicovideo
 }
