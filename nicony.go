@@ -5,7 +5,6 @@ import (
 	"encoding/xml"
 	"flag"
 	"fmt"
-	"github.com/PuerkitoBio/goquery"
 	"github.com/cheggaaa/pb"
 	log "github.com/cihub/seelog"
 	"io"
@@ -135,7 +134,7 @@ func main() {
 
 	login()
 
-	// ニコレポから動画リスト取得
+	// ニコレポページから動画リスト取得
 	var links []string
 	links = getNicorepo(getNicorepoUrl, links)
 
@@ -215,68 +214,6 @@ func login() {
 		url.Values{"mail": {mail}, "password": {password}},
 	)
 	log.Debug(res.Status)
-}
-
-func getNicorepo(getNicorepoUrl string, links []string) []string {
-	client := http.Client{Jar: jar}
-	log.Trace("getNicorepo URL: " + getNicorepoUrl)
-	res, _ := client.Get(getNicorepoUrl)
-	body, _ := ioutil.ReadAll(res.Body)
-	defer res.Body.Close()
-	doc, _ := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
-
-	// タイムライン
-	nextPageLink := ""
-	doc.Find(".nicorepo-page").Each(func(_ int, s *goquery.Selection) {
-		// マイリスト
-		s.Find(".log-user-mylist-add .log-target-info").Each(func(_ int, s *goquery.Selection) {
-			log.Trace(s.Find("a").Text())
-			link, _ := s.Find("a").Attr("href")
-			buf := strings.Split(link, "/")
-			number := buf[len(buf)-1]
-			links = append(links, number)
-		})
-		// 公式が動画投稿
-		s.Find(".log-community-video-upload .log-target-info").Each(func(_ int, s *goquery.Selection) {
-			log.Trace(s.Find("a").Text())
-			link, _ := s.Find("a").Attr("href")
-			buf := strings.Split(link, "/")
-			number := buf[len(buf)-1]
-			links = append(links, number)
-		})
-		// ユーザーが動画投稿
-		s.Find(".log-user-video-upload .log-target-info").Each(func(_ int, s *goquery.Selection) {
-			log.Trace(s.Find("a").Text())
-			link, _ := s.Find("a").Attr("href")
-			buf := strings.Split(link, "/")
-			number := buf[len(buf)-1]
-			links = append(links, number)
-		})
-		// xx再生を達成
-		s.Find(".log-user-video-round-number-of-view-counter .log-target-info").Each(func(_ int, s *goquery.Selection) {
-			log.Trace(s.Find("a").Text())
-			link, _ := s.Find("a").Attr("href")
-			buf := strings.Split(link, "/")
-			number := buf[len(buf)-1]
-			links = append(links, number)
-		})
-		// ニコレポ最後
-		s.Find(".no-next-page").Each(func(_ int, s *goquery.Selection) {
-			log.Trace(".no-next")
-		})
-
-		// 過去のニコレポ再帰呼び出し
-		s.Find(".next-page-link").Each(func(_ int, s *goquery.Selection) {
-			log.Trace(".next")
-			link, _ := s.Attr("href")
-			nextPageLink = link
-		})
-	})
-	if nextPageLink == "" {
-		return links
-	} else {
-		return getNicorepo(nicovideojpUrl+nextPageLink, links)
-	}
 }
 
 func getThumb(getThumbinfoUrl string) NicovideoThumbResponse {
