@@ -38,6 +38,7 @@ type Account struct {
 type Option struct {
 	IsAnsi        *bool // ログ出力をAnsiカラーにするか
 	IsProgressBar *bool // ダウンロード時プログレスバーを表示するか
+	IsVersion     *bool // バージョン表示
 }
 
 // 指定された動画のFLV保管URLの情報 http://dic.nicovideo.jp/a/ニコニコ動画api
@@ -108,16 +109,28 @@ type ThreadKeyInfo struct {
 // cookie
 var jar, _ = cookiejar.New(nil)
 
-func main() {
+func optionParser() Option {
 	o := Option{}
 	o.IsAnsi = flag.Bool("ansi", true, "Output Ansi color")
 	o.IsProgressBar = flag.Bool("pb", true, "Show progress bar")
+	o.IsVersion = flag.Bool("v", false, "Show version")
 	flag.Parse()
+
+	return o
+}
+
+func main() {
+	o := optionParser()
+
+	if *o.IsVersion {
+		fmt.Println(getVersion())
+		os.Exit(0)
+	}
 
 	initLogger(o)
 	defer log.Flush()
 
-	log.Info("nicony ver.0.3")
+	log.Info(getVersion())
 
 	login()
 
