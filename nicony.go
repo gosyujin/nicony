@@ -103,15 +103,16 @@ var jar, _ = cookiejar.New(nil)
 
 // オプション情報
 type Option struct {
-	IsAnsi        *bool // ログ出力をAnsiカラーにするか
-	IsProgressBar *bool // ダウンロード時プログレスバーを表示するか
-	IsVersion     *bool // バージョン表示
-
+	IsAnsi        *bool   // ログ出力をAnsiカラーにするか
+	IsProgressBar *bool   // ダウンロード時プログレスバーを表示するか
+	IsVersion     *bool   // バージョン表示
+	LogLevel      *string // ログレベル
 }
 
 func optionParser() Option {
 	o := Option{}
 	o.IsAnsi = flag.Bool("ansi", true, "Output Ansi color")
+	o.LogLevel = flag.String("l", "debug", "Log level")
 	o.IsProgressBar = flag.Bool("pb", true, "Show progress bar")
 	o.IsVersion = flag.Bool("v", false, "Show version")
 	flag.Parse()
