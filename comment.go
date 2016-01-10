@@ -50,7 +50,10 @@ func getComment(flvInfo FlvInfo) []byte {
 	log.Tracef("%#v", res)
 	log.Debug(res.Status)
 
-	body, _ := ioutil.ReadAll(res.Body)
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		log.Error("response is nil")
+	}
 	defer res.Body.Close()
 
 	return body
