@@ -34,11 +34,13 @@ type Account struct {
 
 // オプション情報
 type Option struct {
-	IsAnsi        *bool   // ログ出力をAnsiカラーにするか
-	IsProgressBar *bool   // ダウンロード時プログレスバーを表示するか
-	IsVersion     *bool   // バージョン表示
-	LogLevel      *string // ログレベル
-	VideoId       *string // ビデオID
+	IsAnsi          *bool   // ログ出力をAnsiカラーにするか
+	IsProgressBar   *bool   // ダウンロード時プログレスバーを表示するか
+	IsVersion       *bool   // バージョン表示
+	LogLevel        *string // ログレベル
+	VideoId         *string // ビデオID
+	Destination     *string // 出力先
+	AccountFilepath *string // ログイン情報ファイルのパス
 }
 
 func main() {
@@ -54,7 +56,7 @@ func main() {
 
 	log.Info(getVersion())
 
-	login()
+	login(*o.AccountFilepath)
 
 	if *o.VideoId == "" {
 		// ニコレポページから動画リスト取得
@@ -74,18 +76,20 @@ func main() {
 func optionParser() Option {
 	o := Option{}
 	o.IsAnsi = flag.Bool("ansi", true, "Enable Ansi color")
-	o.LogLevel = flag.String("l", "debug", "Log level")
-	o.VideoId = flag.String("id", "", "Video ID (ex.sm123456789)")
 	o.IsProgressBar = flag.Bool("pb", true, "Show progress bar")
 	o.IsVersion = flag.Bool("v", false, "Show version")
+	o.LogLevel = flag.String("l", "debug", "Log level")
+	o.VideoId = flag.String("id", "", "Video ID ex.sm123456789")
+	o.Destination = flag.String("d", "./dest", "Destination path")
+	o.AccountFilepath = flag.String("a", "./account.json", "Login account setting file")
 	flag.Parse()
 
 	return o
 }
 
-func login() {
-	log.Info("read ./account.json")
-	jsonstring, _ := ioutil.ReadFile("./account.json")
+func login(accountFilepath string) {
+	log.Info("read " + accountFilepath)
+	jsonstring, _ := ioutil.ReadFile(accountFilepath)
 	a := Account{}
 	json.Unmarshal(jsonstring, &a)
 	mail := a.Mail
@@ -111,6 +115,7 @@ func download(url string, o Option) {
 	// 動画情報取得(未ログインでも取得できる)
 	nicovideo := getNicovideoThumbResponse(getThumbinfoUrl + url)
 
+	// ファイル名に/が入っている場合は消す
 	title := strings.Replace(nicovideo.Thumb.Title, "/", "", -1)
 	chName := nicovideo.Thumb.ChName
 	nickname := nicovideo.Thumb.UserNickname
@@ -126,7 +131,7 @@ func download(url string, o Option) {
 		return
 	}
 
-	filepath := "dest"
+	filepath := *o.Destination
 	if chName == "" {
 		filepath = filepath + "/user/" + nickname
 	} else {
@@ -176,6 +181,7 @@ func saveVideo(filepath string, videoUrl string, nicovideo NicovideoThumbRespons
 	videoUrlDecode, _ := url.QueryUnescape(videoUrl)
 	log.Debug("video server URL: " + videoUrlDecode)
 	res, _ := client.Get(videoUrlDecode)
+	log.Tracef("%#v", res)
 	log.Debug(res.Status)
 	defer res.Body.Close()
 

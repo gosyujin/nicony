@@ -28,6 +28,9 @@ type FlvInfo struct {
 	NeedsKey         string //17 公式放送のみ存在？
 	OptionalThreadId string //18 公式放送のみ存在？
 	NgCh             string //19 公式放送のみ存在？
+	Closed           string //20
+	Deleted          string //21
+	Error            string //22
 }
 
 func getFlvInfo(getFlvUrl string) FlvInfo {
@@ -85,10 +88,17 @@ func getFlvInfo(getFlvUrl string) FlvInfo {
 			f.OptionalThreadId = value
 		case "ng_ch":
 			f.NgCh = value
+		case "closed":
+			// 1だと不正終了っぽい
+			f.Closed = value
+		case "deleted":
+			// 2だと削除された動画っぽい
+			f.Deleted = value
+		case "error":
+			// invalid_v1だと有料放送っぽい？
+			f.Error = value
 		default:
 			log.Warn("unknown parameter: " + key + " value is " + value)
-			// closedがあり、かつ1だと不正終了っぽい
-			// deletedがあり、かつ2だと削除された動画っぽい
 		}
 	}
 
