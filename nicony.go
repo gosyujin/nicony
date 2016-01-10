@@ -94,7 +94,7 @@ type Tag struct {
 
 //コメントDLに使う
 type ThreadKeyInfo struct {
-	ThreadKey string //1 コメントDLで使う、必ず空？
+	ThreadKey string //1 コメントDLで使う
 	Force184  string //2 コメントDLで使う、必ず1？
 }
 
@@ -301,6 +301,7 @@ func getFlvInfo(getFlvUrl string) FlvInfo {
 		default:
 			log.Warn("unknown parameter: " + key + " value is " + value)
 			// closedがあり、かつ1だと不正終了っぽい
+			// deletedがあり、かつ2だと削除された動画っぽい
 		}
 	}
 
