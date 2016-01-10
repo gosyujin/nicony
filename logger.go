@@ -38,7 +38,7 @@ func initLogger(o Option) {
 		        <console />
 		      </filter>
 		      <filter formatid="plane" levels="trace,debug,info,warn,error,critical">
-		        <rollingfile filename="./log/log.txt" type="size" maxsize="1024000" maxrolls="500" />
+		        <rollingfile filename="./var/log.txt" type="size" maxsize="1024000" maxrolls="500" />
 		      </filter>
 		    </outputs>
 		  </seelog>`
@@ -53,7 +53,7 @@ func initLogger(o Option) {
 		        <console />
 		      </filter>
 		      <filter formatid="plane" levels="trace,debug,info,warn,error,critical">
-		        <rollingfile filename="./log/log.txt" type="size" maxsize="1024000" maxrolls="500" />
+		        <rollingfile filename="./var/log.txt" type="size" maxsize="1024000" maxrolls="500" />
 		      </filter>
 		    </outputs>
 		  </seelog>`
