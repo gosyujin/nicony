@@ -42,18 +42,18 @@ func getComment(flvInfo FlvInfo) []byte {
 	client := http.Client{Jar: jar}
 	messageServer, _ := url.QueryUnescape(flvInfo.Ms)
 	log.Debug("comment server URL: " + messageServer)
-	res, _ := client.Post(
+	res, err := client.Post(
 		messageServer,
 		"application/x-www-form-urlencoded",
 		strings.NewReader(packetXml),
 	)
-	log.Tracef("%#v", res)
-	log.Debug(res.Status)
-
-	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		log.Error("response is nil")
 	}
+	log.Tracef("%#v", res)
+	log.Debug(res.Status)
+
+	body, _ := ioutil.ReadAll(res.Body)
 	defer res.Body.Close()
 
 	return body
