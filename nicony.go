@@ -18,6 +18,7 @@ const (
 	loginUrl        = "https://secure.nicovideo.jp/secure/login"
 	nicovideojpUrl  = "http://www.nicovideo.jp/"
 	getNicorepoUrl  = "http://www.nicovideo.jp/my/top/all?innerPage=1&mode=next_page"
+	getMylistUrl    = "http://www.nicovideo.jp/mylist/"
 	getThumbinfoUrl = "http://ext.nicovideo.jp/api/getthumbinfo/"
 	getFlvUrl       = "http://flapi.nicovideo.jp/api/getflv/"
 	getThreadKeyUrl = "http://flapi.nicovideo.jp/api/getthreadkey/"
