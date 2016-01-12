@@ -11,12 +11,13 @@ import (
 
 //コメントDLにPostに埋め込むxmlに使うパラメータ
 type ThreadKeyInfo struct {
-	ThreadKey string //1 コメントDLで使う
+	ThreadKey string //1 コメントDLで使う、ユーザ動画は空、公式動画は値あり？
 	Force184  string //2 コメントDLで使う、必ず1？
 }
 
 func getComment(flvInfo FlvInfo) []byte {
 	threadKeyInfo := getThreadKeyInfo(flvInfo.ThreadId)
+	sleep(5000)
 
 	minutes := (parseInt(flvInfo.L) / 60) + 1
 	packetXml := fmt.Sprintf(
