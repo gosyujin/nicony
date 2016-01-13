@@ -139,6 +139,9 @@ func download(url string, o Option) {
 	if flvInfo.Url == "" {
 		log.Warn("flvInfo.Url is EMPTY.無料期間終了か、元から有料っぽい")
 		return
+	} else if strings.Contains(flvInfo.Url, "rtmpe://") {
+		log.Warn("flvInfo.Url is Real Time Messaging Protocol.パトロールが難しいタイプの動画")
+		return
 	}
 
 	filepath := *o.Destination
