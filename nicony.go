@@ -40,6 +40,7 @@ type Option struct {
 	IsVersion       *bool   // バージョン表示
 	LogLevel        *string // ログレベル
 	VideoId         *string // ビデオID
+	MylistId        *string // マイリストID
 	Destination     *string // 出力先
 	AccountFilepath *string // ログイン情報ファイルのパス
 }
@@ -59,7 +60,18 @@ func main() {
 
 	login(*o.AccountFilepath)
 
-	if *o.VideoId == "" {
+	if *o.VideoId != "" {
+		// 引数に指定された動画取得
+		download(*o.VideoId, o)
+	} else if *o.MylistId != "" {
+		// 引数に指定されたマイリスト取得
+		var links []string
+		links = getMylist(getMylistUrl + *o.MylistId + "?rss=2.0")
+
+		for _, videoId := range links {
+			download(videoId, o)
+		}
+	} else {
 		// ニコレポページから動画リスト取得
 		var links []string
 		links = getNicorepo(getNicorepoUrl, links)
@@ -67,11 +79,7 @@ func main() {
 		for _, videoId := range links {
 			download(videoId, o)
 		}
-	} else {
-		// 引数に指定された動画取得
-		download(*o.VideoId, o)
 	}
-
 }
 
 func optionParser() Option {
@@ -81,6 +89,7 @@ func optionParser() Option {
 	o.IsVersion = flag.Bool("v", false, "Show version")
 	o.LogLevel = flag.String("l", "debug", "Log level")
 	o.VideoId = flag.String("id", "", "Video ID ex.sm123456789")
+	o.MylistId = flag.String("mylist", "", "Mylist ID ex.123456789")
 	o.Destination = flag.String("d", "./dest", "Destination path")
 	o.AccountFilepath = flag.String("a", "./account.json", "Login account setting file")
 	flag.Parse()
