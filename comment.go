@@ -87,10 +87,9 @@ func getThreadKeyInfo(threadId string) ThreadKeyInfo {
 
 	//レスポンスをクエリパラメータ毎に分割
 	t := ThreadKeyInfo{}
-	for _, param := range strings.Split(string(body), "&") {
-		temp := strings.Split(param, "=")
-		key := temp[0]
-		value := temp[1]
+	queryMap, _ := url.ParseQuery(string(body))
+	for key, v := range queryMap {
+		value := v[0]
 
 		switch key {
 		case "threadkey":

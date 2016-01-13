@@ -4,7 +4,7 @@ import (
 	log "github.com/cihub/seelog"
 	"io/ioutil"
 	"net/http"
-	"strings"
+	"net/url"
 )
 
 // 指定された動画のFLV保管URLの情報 http://dic.nicovideo.jp/a/ニコニコ動画api
@@ -44,10 +44,9 @@ func getFlvInfo(getFlvUrl string) FlvInfo {
 
 	//レスポンスをクエリパラメータ毎に分割
 	f := FlvInfo{}
-	for _, param := range strings.Split(string(body), "&") {
-		temp := strings.Split(param, "=")
-		key := temp[0]
-		value := temp[1]
+	queryMap, _ := url.ParseQuery(string(body))
+	for key, v := range queryMap {
+		value := v[0]
 
 		switch key {
 		case "thread_id":
