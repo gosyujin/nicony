@@ -50,25 +50,14 @@ func getComment(flvInfo FlvInfo) []byte {
 	)
 	if err != nil {
 		log.Error(err)
-
-		res, err := client.Post(
-			messageServer,
-			"application/x-www-form-urlencoded",
-			strings.NewReader(packetXml),
-		)
-		if err != nil {
-			log.Error(err)
-		} else {
-			log.Tracef("%#v", res)
-			log.Debug(res.Status)
-		}
-	} else {
-		log.Tracef("%#v", res)
-		log.Debug(res.Status)
 	}
+	log.Tracef("%#v", res)
+	log.Debug(res.Status)
+
 	body, _ := ioutil.ReadAll(res.Body)
 	defer res.Body.Close()
 
+	sleep(5000)
 	return body
 }
 
