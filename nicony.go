@@ -125,8 +125,17 @@ func download(url string, o Option) {
 	// 動画情報取得(未ログインでも取得できる)
 	nicovideo := getNicovideoThumbResponse(getThumbinfoUrl + url)
 
+	// nicovideoThumbResponseが正常に取得できなかった場合の処理
 	if nicovideo.Error.Code != "" {
-		log.Error(nicovideo.Error.Code)
+		log.Warn(nicovideo.Error.Code + " " + nicovideo.Error.Description)
+		return
+	}
+	// flvInfoが正常に取得できなかった場合の処理
+	if flvInfo.Url == "" {
+		log.Warn("flvInfo.Url is EMPTY.無料期間終了か、元から有料っぽい")
+		return
+	} else if strings.Contains(flvInfo.Url, "rtmpe://") {
+		log.Warn("flvInfo.Url is Real Time Messaging Protocol.パトロールが難しいタイプの動画")
 		return
 	}
 
@@ -140,14 +149,6 @@ func download(url string, o Option) {
 	sizeHigh := nicovideo.Thumb.SizeHigh
 
 	log.Info("target: " + title)
-
-	if flvInfo.Url == "" {
-		log.Warn("flvInfo.Url is EMPTY.無料期間終了か、元から有料っぽい")
-		return
-	} else if strings.Contains(flvInfo.Url, "rtmpe://") {
-		log.Warn("flvInfo.Url is Real Time Messaging Protocol.パトロールが難しいタイプの動画")
-		return
-	}
 
 	filepath := *o.Destination
 	if chName == "" {

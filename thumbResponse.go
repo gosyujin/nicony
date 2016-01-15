@@ -45,7 +45,7 @@ type Tag struct {
 }
 
 type Error struct {
-	Code string `xml:"code"`
+	Code        string `xml:"code"`
 	Description string `xml:"description"`
 }
 
