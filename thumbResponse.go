@@ -10,6 +10,7 @@ import (
 // 指定された動画の動画情報 http://dic.nicovideo.jp/a/ニコニコ動画api
 type NicovideoThumbResponse struct {
 	Thumb Thumb `xml:"thumb"`
+	Error Error `xml:"error"`
 }
 
 type Thumb struct {
@@ -43,6 +44,11 @@ type Tag struct {
 	Tag []string `xml:"tag"`
 }
 
+type Error struct {
+	Code string `xml:"code"`
+	Description string `xml:"description"`
+}
+
 func getNicovideoThumbResponse(getThumbinfoUrl string) NicovideoThumbResponse {
 	log.Debug("get getNicovideoThumbResponse URL: " + getThumbinfoUrl)
 
@@ -51,7 +57,7 @@ func getNicovideoThumbResponse(getThumbinfoUrl string) NicovideoThumbResponse {
 	body, _ := ioutil.ReadAll(res.Body)
 	defer res.Body.Close()
 
-	nicovideo := NicovideoThumbResponse{Thumb{}}
+	nicovideo := NicovideoThumbResponse{}
 	xml.Unmarshal(body, &nicovideo)
 	log.Tracef("%#v", nicovideo)
 

@@ -125,6 +125,11 @@ func download(url string, o Option) {
 	// 動画情報取得(未ログインでも取得できる)
 	nicovideo := getNicovideoThumbResponse(getThumbinfoUrl + url)
 
+	if nicovideo.Error.Code != "" {
+		log.Error(nicovideo.Error.Code)
+		return
+	}
+
 	// ファイル名に/が入っている場合は消す
 	title := strings.Replace(nicovideo.Thumb.Title, "/", "", -1)
 	chName := nicovideo.Thumb.ChName
