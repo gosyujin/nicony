@@ -9,28 +9,30 @@ import (
 
 // 指定された動画のFLV保管URLの情報 http://dic.nicovideo.jp/a/ニコニコ動画api
 type FlvInfo struct {
-	ThreadId         string //1 コメントDLで使う
-	L                string //2 コメントDLで使う、60で割って+1して使う
-	Url              string //3 動画DLで使う
-	Ms               string //4 コメントDLで使う
-	MsSub            string //5
-	UserId           string //6 コメントDLで使う
-	IsPremium        string //7 (プレミアムなら1)
-	Nickname         string //8
-	Time             string //9
-	Done             string //10
-	NgRv             string //11
-	Hms              string //12
-	Hmsp             string //13
-	Hmst             string //14
-	Hmstk            string //15
-	UserKey          string //16
-	NeedsKey         string //17 公式放送のみ存在？
-	OptionalThreadId string //18 公式放送のみ存在？
-	NgCh             string //19 公式放送のみ存在？
-	Closed           string //20
-	Deleted          string //21
-	Error            string //22
+	ThreadId            string //1 コメントDLで使う
+	L                   string //2 コメントDLで使う、60で割って+1して使う
+	Url                 string //3 動画DLで使う
+	Ms                  string //4 コメントDLで使う
+	MsSub               string //5
+	UserId              string //6 コメントDLで使う
+	IsPremium           string //7 (プレミアムなら1)
+	Nickname            string //8
+	Time                string //9
+	Done                string //10
+	NgRv                string //11
+	Hms                 string //12
+	Hmsp                string //13
+	Hmst                string //14
+	Hmstk               string //15
+	UserKey             string //16
+	NeedsKey            string //17 公式放送のみ存在？
+	OptionalThreadId    string //18 公式放送のみ存在？
+	NgCh                string //19 公式放送のみ存在？
+	Closed              string //20
+	Deleted             string //21
+	Error               string //22
+	Fmst                string //23
+	NotAvailablePostkey string //24
 }
 
 func getFlvInfo(getFlvUrl string) FlvInfo {
@@ -96,6 +98,10 @@ func getFlvInfo(getFlvUrl string) FlvInfo {
 		case "error":
 			// invalid_v1だと有料放送っぽい？
 			f.Error = value
+		case "fmst":
+			f.Fmst = value
+		case "not_available_postkey":
+			f.NotAvailablePostkey = value
 		default:
 			log.Warn("unknown parameter: " + key + " value is " + value)
 		}
