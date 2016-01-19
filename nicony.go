@@ -110,7 +110,12 @@ func login(o Option) {
 		a.Password = *o.Password
 	} else {
 		log.Info("read accountFile: " + *o.AccountFilepath)
-		jsonstring, _ := ioutil.ReadFile(*o.AccountFilepath)
+		jsonstring, err := ioutil.ReadFile(*o.AccountFilepath)
+		if err != nil {
+			log.Error(err)
+			sleep(5000)
+			os.Exit(1)
+		}
 		json.Unmarshal(jsonstring, &a)
 	}
 	log.Debug("login URL: " + loginUrl)
