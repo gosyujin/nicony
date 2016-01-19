@@ -114,16 +114,17 @@ func login(accountFilepath string) {
 	log.Debug(res.Status)
 }
 
-func download(url string, o Option) {
+func download(videoId string, o Option) {
 	log.Info("===================================================")
+	log.Info("videoId: " + videoId)
 	sleep(15000)
 
 	// flv保管情報取得
-	flvInfo := getFlvInfo(getFlvUrl + url)
+	flvInfo := getFlvInfo(getFlvUrl + videoId)
 	log.Tracef("%#v", flvInfo)
 
 	// 動画情報取得(未ログインでも取得できる)
-	nicovideo := getNicovideoThumbResponse(getThumbinfoUrl + url)
+	nicovideo := getNicovideoThumbResponse(getThumbinfoUrl + videoId)
 
 	// nicovideoThumbResponseが正常に取得できなかった場合の処理
 	if nicovideo.Error.Code != "" {

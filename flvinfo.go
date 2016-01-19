@@ -33,6 +33,8 @@ type FlvInfo struct {
 	Error               string //22
 	Fmst                string //23
 	NotAvailablePostkey string //24
+	NicosId             string //25
+	NgUp                string //26
 }
 
 func getFlvInfo(getFlvUrl string) FlvInfo {
@@ -102,6 +104,10 @@ func getFlvInfo(getFlvUrl string) FlvInfo {
 			f.Fmst = value
 		case "not_available_postkey":
 			f.NotAvailablePostkey = value
+		case "nicos_id":
+			f.NicosId = value
+		case "ng_up":
+			f.NgUp = value
 		default:
 			log.Warn("unknown parameter: " + key + " value is " + value)
 		}
