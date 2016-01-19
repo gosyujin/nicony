@@ -43,6 +43,8 @@ type Option struct {
 	MylistId        *string // マイリストID
 	Destination     *string // 出力先
 	AccountFilepath *string // ログイン情報ファイルのパス
+	Mail            *string // ログイン用メールアドレス
+	Password        *string // ログイン用パスワード
 }
 
 func main() {
@@ -58,7 +60,7 @@ func main() {
 
 	log.Info(getVersion())
 
-	login(*o.AccountFilepath)
+	login(o)
 
 	if *o.VideoId != "" {
 		// 引数に指定された動画取得
@@ -92,26 +94,40 @@ func optionParser() Option {
 	o.MylistId = flag.String("mylist", "", "Mylist ID ex.123456789")
 	o.Destination = flag.String("d", "./dest", "Destination path")
 	o.AccountFilepath = flag.String("a", "./account.json", "Login account setting file")
+	o.Mail = flag.String("mail", "", "Login mailaddress (-m MAILADDRESS -p PASSWORD)")
+	o.Password = flag.String("password", "", "Login password (-m MAILADDRESS -p PASSWORD")
+
 	flag.Parse()
 
 	return o
 }
 
-func login(accountFilepath string) {
-	log.Info("read " + accountFilepath)
-	jsonstring, _ := ioutil.ReadFile(accountFilepath)
+func login(o Option) {
 	a := Account{}
-	json.Unmarshal(jsonstring, &a)
-	mail := a.Mail
-	password := a.Password
-
+	if *o.Mail != "" && *o.Password != "" {
+		log.Info("read mailaddress and password args")
+		a.Mail = *o.Mail
+		a.Password = *o.Password
+	} else {
+		log.Info("read accountFile: " + *o.AccountFilepath)
+		jsonstring, _ := ioutil.ReadFile(*o.AccountFilepath)
+		json.Unmarshal(jsonstring, &a)
+	}
 	log.Debug("login URL: " + loginUrl)
 	client := http.Client{Jar: jar}
 	res, _ := client.PostForm(
 		loginUrl,
-		url.Values{"mail": {mail}, "password": {password}},
+		url.Values{"mail": {a.Mail}, "password": {a.Password}},
 	)
+	log.Tracef("%#v", res)
 	log.Debug(res.Status)
+	if res.StatusCode != 301 {
+		log.Info("login failed")
+		sleep(5000)
+		os.Exit(1)
+	} else {
+		log.Info("login success")
+	}
 }
 
 func download(videoId string, o Option) {
