@@ -95,7 +95,7 @@ func optionParser() Option {
 	o.Destination = flag.String("d", "./dest", "Destination path")
 	o.AccountFilepath = flag.String("a", "./account.json", "Login account setting file")
 	o.Mail = flag.String("mail", "", "Login mailaddress (-m MAILADDRESS -p PASSWORD)")
-	o.Password = flag.String("password", "", "Login password (-m MAILADDRESS -p PASSWORD")
+	o.Password = flag.String("password", "", "Login password (-m MAILADDRESS -p PASSWORD)")
 
 	flag.Parse()
 
