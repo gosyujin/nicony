@@ -13,3 +13,7 @@ Powerd by Golang.
 ## Demo
 
 ![](./img/demo.gif)
+
+## License
+
+MIT.
