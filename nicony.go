@@ -39,6 +39,7 @@ type Option struct {
 	IsProgressBar   *bool   // ダウンロード時プログレスバーを表示するか
 	IsVersion       *bool   // バージョン表示
 	LogLevel        *string // ログレベル
+	LogDestination  *string // ログ出力場所
 	VideoId         *string // ビデオID
 	MylistId        *string // マイリストID
 	Destination     *string // 出力先
@@ -59,6 +60,8 @@ func main() {
 	defer log.Flush()
 
 	log.Info(getVersion())
+	log.Info("video Destination path: " + *o.Destination)
+	log.Info("log Destination path: " + *o.LogDestination)
 
 	login(o)
 
@@ -90,6 +93,7 @@ func optionParser() Option {
 	o.IsProgressBar = flag.Bool("pb", true, "Show progress bar")
 	o.IsVersion = flag.Bool("v", false, "Show version")
 	o.LogLevel = flag.String("l", "debug", "Log level")
+	o.LogDestination = flag.String("logdest", "./var/log/nicony.log", "Log destination path")
 	o.VideoId = flag.String("id", "", "Video ID ex.sm123456789")
 	o.MylistId = flag.String("mylist", "", "Mylist ID ex.123456789")
 	o.Destination = flag.String("d", "./dest", "Destination path")

@@ -7,7 +7,9 @@ import (
 func initLogger(o Option) {
 	var logConfig string
 	var logLevel string
+	var logDestination string
 
+	logDestination = *o.LogDestination
 	switch *o.LogLevel {
 	case "critical":
 		logLevel = "critical"
@@ -38,7 +40,7 @@ func initLogger(o Option) {
 		        <console />
 		      </filter>
 		      <filter formatid="plane" levels="trace,debug,info,warn,error,critical">
-		        <rollingfile filename="./var/log.txt" type="size" maxsize="1024000" maxrolls="500" />
+		        <rollingfile filename="` + logDestination + `" type="size" maxsize="1024000" maxrolls="500" />
 		      </filter>
 		    </outputs>
 		  </seelog>`
@@ -53,7 +55,7 @@ func initLogger(o Option) {
 		        <console />
 		      </filter>
 		      <filter formatid="plane" levels="trace,debug,info,warn,error,critical">
-		        <rollingfile filename="./var/log.txt" type="size" maxsize="1024000" maxrolls="500" />
+		        <rollingfile filename="` + logDestination + `" type="size" maxsize="1024000" maxrolls="500" />
 		      </filter>
 		    </outputs>
 		  </seelog>`
