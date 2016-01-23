@@ -38,6 +38,7 @@ type Option struct {
 	IsAnsi          *bool   // ログ出力をAnsiカラーにするか
 	IsProgressBar   *bool   // ダウンロード時プログレスバーを表示するか
 	IsVersion       *bool   // バージョン表示
+	IsForce         *bool   // 強制ダウンロード
 	LogLevel        *string // ログレベル
 	LogDestination  *string // ログ出力場所
 	VideoId         *string // ビデオID
@@ -92,6 +93,7 @@ func optionParser() Option {
 	o.IsAnsi = flag.Bool("ansi", true, "Enable Ansi color")
 	o.IsProgressBar = flag.Bool("pb", true, "Show progress bar")
 	o.IsVersion = flag.Bool("v", false, "Show version")
+	o.IsForce = flag.Bool("f", false, "Force download")
 	o.LogLevel = flag.String("l", "debug", "Log level")
 	o.LogDestination = flag.String("logdest", "./var/log/nicony.log", "Log destination path")
 	o.VideoId = flag.String("id", "", "Video ID ex.sm123456789")
@@ -191,6 +193,14 @@ func download(videoId string, o Option) {
 	} else {
 		if int(fi.Size()) == fullsize {
 			log.Warn("video is already EXIST.動画は既に存在している: " + dest)
+
+			// 存在しているが、-fオプションが付いている場合は動画情報とコメントを取りに行く
+			if *o.IsForce {
+				log.Info("force download.動画情報とコメント強制ダウンロード")
+				saveNicovideoInfo(dest+txtType, nicovideo)
+				saveComment(dest+xmlType, flvInfo)
+			}
+
 			return
 		} else {
 			log.Warn("redownload: " + dest)
@@ -201,18 +211,24 @@ func download(videoId string, o Option) {
 	log.Info("make dir: " + filepath)
 	os.MkdirAll(filepath, 0711)
 
-	// 動画情報ファイル出力
-	buf, _ := xml.MarshalIndent(nicovideo, "", "  ")
-	writeFile(dest+txtType, buf)
-
-	// コメント取得
-	comment := getComment(flvInfo)
-	writeFile(dest+xmlType, comment)
-
-	// 動画ファイル書き込み
+	saveNicovideoInfo(dest+txtType, nicovideo)
+	saveComment(dest+xmlType, flvInfo)
 	saveVideo(dest+movieType, flvInfo.Url, nicovideo, o)
 }
 
+// 動画情報ファイル出力
+func saveNicovideoInfo(filePath string, nicovideo NicovideoThumbResponse) {
+	buf, _ := xml.MarshalIndent(nicovideo, "", "  ")
+	writeFile(filePath, buf)
+}
+
+// コメント取得
+func saveComment(filePath string, flvInfo FlvInfo) {
+	comment := getComment(flvInfo)
+	writeFile(filePath, comment)
+}
+
+// 動画ファイル書き込み
 func saveVideo(filepath string, videoUrl string, nicovideo NicovideoThumbResponse, o Option) {
 	client := http.Client{Jar: jar}
 	watchUrl := nicovideo.Thumb.WatchUrl
