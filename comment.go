@@ -45,7 +45,7 @@ func getComment(flvInfo FlvInfo) []byte {
 	log.Debug("comment server URL: " + messageServer)
 	res, err := client.Post(
 		messageServer,
-		"application/x-www-form-urlencoded",
+		"text/xml",
 		strings.NewReader(packetXml),
 	)
 	if err != nil {
