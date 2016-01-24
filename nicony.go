@@ -164,6 +164,7 @@ func download(videoId string, o Option) {
 		return
 	} else if strings.Contains(flvInfo.Url, "rtmpe://") {
 		log.Warn("flvInfo.Url is Real Time Messaging Protocol.パトロールが難しいタイプの動画")
+		saveRtmp(flvInfo, nicovideo)
 		return
 	}
 
@@ -252,4 +253,30 @@ func saveVideo(filepath string, videoUrl string, nicovideo NicovideoThumbRespons
 	defer file.Close()
 
 	copyFile(size, file, res.Body, o)
+}
+
+func saveRtmp(flvInfo FlvInfo, nicovideo NicovideoThumbResponse) {
+	parseUrl, _ := url.Parse(flvInfo.Url)
+	log.Tracef("%#v", parseUrl)
+	host := parseUrl.Host
+	tcUrl := parseUrl.Scheme + "://" + parseUrl.Host + parseUrl.Path
+	playpath := parseUrl.RawQuery
+
+	buf := strings.Split(flvInfo.Fmst, ":")
+	fmst1 := buf[1]
+	fmst2 := buf[0]
+
+	pageUrl := nicovideo.Thumb.WatchUrl
+
+	swfUrl := "http://res.nimg.jp/swf/player/secure_nccreator.swf?t=201111091500"
+	flashVer := "WIN 11,6,602,180"
+
+	log.Info(host)
+	log.Info(tcUrl)
+	log.Info(playpath)
+	log.Info(pageUrl)
+	log.Info(fmst1)
+	log.Info(fmst2)
+	log.Info(swfUrl)
+	log.Info(flashVer)
 }
