@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/PuerkitoBio/goquery"
+	"encoding/json"
 	log "github.com/cihub/seelog"
 	set "github.com/deckarep/golang-set"
 	"io/ioutil"
@@ -10,62 +10,81 @@ import (
 	"strings"
 )
 
-// ニコレポから動画IDのリストを取得する
-func getNicorepo(getNicorepoUrl string, links []string) []string {
-	client := http.Client{Jar: jar}
-	log.Trace("getNicorepo URL: " + getNicorepoUrl)
-
-	res, _ := client.Get(getNicorepoUrl)
-	body, _ := ioutil.ReadAll(res.Body)
-	defer res.Body.Close()
-	doc, _ := goquery.NewDocumentFromReader(strings.NewReader(string(body)))
-
-	// タイムライン
-	nextPageLink := ""
-	doc.Find(".nicorepo-page").Each(func(_ int, s *goquery.Selection) {
-		// マイリスト
-		s.Find(".log-user-mylist-add .log-target-info").Each(func(_ int, s *goquery.Selection) {
-			links = addList(s, links)
-		})
-		// 公式が動画投稿
-		s.Find(".log-community-video-upload .log-target-info").Each(func(_ int, s *goquery.Selection) {
-			links = addList(s, links)
-		})
-		// ユーザーが動画投稿
-		s.Find(".log-user-video-upload .log-target-info").Each(func(_ int, s *goquery.Selection) {
-			links = addList(s, links)
-		})
-		// xx再生を達成
-		s.Find(".log-user-video-round-number-of-view-counter .log-target-info").Each(func(_ int, s *goquery.Selection) {
-			links = addList(s, links)
-		})
-		// ニコレポ最後
-		s.Find(".no-next-page").Each(func(_ int, s *goquery.Selection) {
-			log.Trace(".no-next")
-		})
-
-		// 過去のニコレポ再帰呼び出し
-		s.Find(".next-page-link").Each(func(_ int, s *goquery.Selection) {
-			log.Trace(".next")
-			link, _ := s.Attr("href")
-			nextPageLink = link
-		})
-	})
-	if nextPageLink == "" {
-		return uniq(links)
-	} else {
-		return getNicorepo(nicovideojpUrl+nextPageLink, links)
-	}
+type Nicorepo struct {
+	Meta   Meta     `json:"meta"`
+	Data   []Data   `json:"data"`
+	Errors []string `json:"errors"`
+	Status string   `json:"status"`
 }
 
-func addList(s *goquery.Selection, links []string) []string {
-	log.Debug(s.Find("a").Text())
-	link, _ := s.Find("a").Attr("href")
-	buf := strings.Split(link, "/")
-	number := buf[len(buf)-1]
+type Meta struct {
+	Status         int    `json:"status"`
+	MaxId          string `json:"maxId"`
+	MinId          string `json:"minId"`
+	ImpressionId   string `json:"impressionId"`
+	ClientAppGroup string `json:"clientAppGroup"`
+	Limit          int    `json:"_limit"`
+}
 
-	links = append(links, number)
-	return links
+type Data struct {
+	Id string `json:"id"`
+	//	Topic         string  `json:"topic"`
+	//	CreatedAt     string  `json:"createdAt"`
+	//	IsVisible     string  `json:"isVisible"`
+	//	IsMuted       string  `json:"isMuted"`
+	//	IsDeletable   string  `json:"isDeletable"`
+	//	MuteContext   string  `json:"muteContext"`
+	//	SenderChannel string  `json:"senderChannel"`
+	//	ActionLog     string  `json:"actionLog"`
+	Program Program `json:"program"`
+	Video   Video   `json:"video"`
+}
+
+type Program struct {
+	Id string `json:"id"`
+	//	BeginAt      string `json:"beginAt"`
+	//	IsPayProgram string `json:"isPayProgram"`
+	//	ThumbnailUrl string `json:"thumbnailUrl"`
+	Title string `json:"title"`
+}
+
+type Video struct {
+	Id string `json:"id"`
+	//Resolution       string `json:"resolution"`
+	//Status           string `json:"status"`
+	//ThumbnailUrl     string `json:"thumbnailUrl"`
+	Title string `json:"title"`
+	//VideoWatchPageId string `json:"videoWatchPageId"`
+}
+
+// ニコレポから動画IDのリストを取得する
+func getNicorepo(getNicorepoUrl string, cursor string, links []string) []string {
+	client := http.Client{Jar: jar}
+	log.Trace("getNicorepo URL: " + getNicorepoUrl + cursor)
+
+	res, _ := client.Get(getNicorepoUrl + cursor)
+	body, _ := ioutil.ReadAll(res.Body)
+	defer res.Body.Close()
+
+	n := Nicorepo{}
+	jsonstring, _ := ioutil.ReadAll(strings.NewReader(string(body)))
+	json.Unmarshal(jsonstring, &n)
+
+	for _, data := range n.Data {
+		if data.Program.Id != "" {
+			links = append(links, data.Program.Id)
+		}
+		if data.Video.Id != "" {
+			links = append(links, data.Video.Id)
+		}
+
+	}
+
+	if n.Meta.MinId == "" {
+		return uniq(links)
+	} else {
+		return getNicorepo(getNicorepoUrl, "&cursor="+n.Meta.MinId, links)
+	}
 }
 
 func uniq(links []string) []string {

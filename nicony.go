@@ -17,7 +17,7 @@ import (
 const (
 	loginUrl        = "https://secure.nicovideo.jp/secure/login"
 	nicovideojpUrl  = "http://www.nicovideo.jp/"
-	getNicorepoUrl  = "http://www.nicovideo.jp/my/top/all?innerPage=1&mode=next_page"
+	getNicorepoUrl  = "http://www.nicovideo.jp/api/nicorepo/timeline/my/all?client_app=pc_myrepo"
 	getMylistUrl    = "http://www.nicovideo.jp/mylist/"
 	getThumbinfoUrl = "http://ext.nicovideo.jp/api/getthumbinfo/"
 	getFlvUrl       = "http://flapi.nicovideo.jp/api/getflv/"
@@ -80,7 +80,7 @@ func main() {
 	} else {
 		// ニコレポページから動画リスト取得
 		var links []string
-		links = getNicorepo(getNicorepoUrl, links)
+		links = getNicorepo(getNicorepoUrl, "", links)
 
 		for _, videoId := range links {
 			download(videoId, o)
