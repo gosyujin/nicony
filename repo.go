@@ -49,12 +49,12 @@ type Program struct {
 }
 
 type Video struct {
-	Id string `json:"id"`
+	//Id string `json:"id"`
 	//Resolution       string `json:"resolution"`
 	//Status           string `json:"status"`
 	//ThumbnailUrl     string `json:"thumbnailUrl"`
-	Title string `json:"title"`
-	//VideoWatchPageId string `json:"videoWatchPageId"`
+	Title            string `json:"title"`
+	VideoWatchPageId string `json:"videoWatchPageId"`
 }
 
 // ニコレポから動画IDのリストを取得する
@@ -71,11 +71,12 @@ func getNicorepo(getNicorepoUrl string, cursor string, links []string) []string 
 	json.Unmarshal(jsonstring, &n)
 
 	for _, data := range n.Data {
-		if data.Program.Id != "" {
-			links = append(links, data.Program.Id)
-		}
-		if data.Video.Id != "" {
-			links = append(links, data.Video.Id)
+		// 生放送
+		//if data.Program.Id != "" {
+		//	links = append(links, data.Program.Id)
+		//}
+		if data.Video.VideoWatchPageId != "" {
+			links = append(links, data.Video.VideoWatchPageId)
 		}
 
 	}
